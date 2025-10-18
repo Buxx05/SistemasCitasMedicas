@@ -1,0 +1,126 @@
+/* Estilos personalizados para el sistema de citas médicas */
+
+/* Transiciones suaves para las tarjetas */
+.small-box {
+    transition: all 0.3s ease;
+}
+
+.small-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Ajustes para el logo en el sidebar */
+.brand-image {
+    max-height: 40px;
+}
+
+/* Estilos para badges personalizados */
+.badge-hospital {
+    background-color: #1e88e5;
+    color: white;
+}
+
+/* Tablas responsivas mejoradas */
+.table-responsive {
+    border-radius: 0.25rem;
+}
+
+/* Animación para las notificaciones */
+.navbar-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Mejora visual para los formularios */
+.form-control:focus,
+.form-select:focus {
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 0.2rem rgba(30, 136, 229, 0.25);
+}
+
+/* Botones personalizados */
+.btn-hospital {
+    background-color: #1e88e5;
+    border-color: #1e88e5;
+    color: white;
+}
+
+.btn-hospital:hover {
+    background-color: #1565c0;
+    border-color: #1565c0;
+    color: white;
+}
+
+/* Animación para alertas */
+.alert.auto-dismiss {
+    animation: slideInDown 0.5s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Barra de progreso visual en la alerta */
+.alert.auto-dismiss::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    animation: progress 3s linear;
+}
+
+@keyframes progress {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+/* Estilos por tipo de alerta */
+.alert-success.auto-dismiss::after {
+    background: #155724;
+}
+
+.alert-danger.auto-dismiss::after {
+    background: #721c24;
+}
+
+.alert-warning.auto-dismiss::after {
+    background: #856404;
+}
+
+.alert-info.auto-dismiss::after {
+    background: #0c5460;
+}
+
+/* Estilos personalizados del sistema */
+
+.main-footer {
+    padding: 1.5rem 1rem !important;
+    min-height: 70px;
+}
+
+.small-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
