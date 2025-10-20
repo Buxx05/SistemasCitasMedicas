@@ -372,7 +372,7 @@
                             <i class="fas fa-hospital"></i>
                         </div>
                         <h2>Sistema de Citas</h2>
-                        <p>Gestión Médica Profesional</p>
+                        <p>La Libertad SJL</p>
                     </div>
 
                     <!-- Alerta de Error (request) -->
