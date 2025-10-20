@@ -174,23 +174,20 @@ public class HorarioProfesionalDAO {
 
     // ========== VALIDACIONES ==========
     /**
-     * Verifica si ya existe un horario que se superpone con el nuevo
+     * ✅ MEJORADO: Verifica si ya existe un horario que se superpone con el
+     * nuevo
      */
     public boolean existeSolapamiento(int idProfesional, String diaSemana, String horaInicio, String horaFin) {
         String sql = "SELECT COUNT(*) as total FROM HorariosProfesional "
                 + "WHERE id_profesional = ? AND dia_semana = ? "
-                + "AND ((hora_inicio < ? AND hora_fin > ?) OR "
-                + "     (hora_inicio < ? AND hora_fin > ?) OR "
-                + "     (hora_inicio >= ? AND hora_fin <= ?))";
+                + "AND (? < hora_fin AND ? > hora_inicio)";  // ✅ Lógica simplificada
+
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, idProfesional);
             stmt.setString(2, diaSemana);
-            stmt.setString(3, horaFin);
-            stmt.setString(4, horaInicio);
-            stmt.setString(5, horaFin);
-            stmt.setString(6, horaFin);
-            stmt.setString(7, horaInicio);
-            stmt.setString(8, horaFin);
+            stmt.setString(3, horaInicio);  // Nuevo inicio
+            stmt.setString(4, horaFin);     // Nuevo fin
+
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getInt("total") > 0;
@@ -202,24 +199,41 @@ public class HorarioProfesionalDAO {
     }
 
     /**
-     * Verifica solapamiento excluyendo un horario específico (para editar)
+     * ✅ MEJORADO: Verifica solapamiento excluyendo un horario específico (para
+     * editar)
      */
     public boolean existeSolapamientoExcepto(int idProfesional, String diaSemana, String horaInicio, String horaFin, int idHorario) {
         String sql = "SELECT COUNT(*) as total FROM HorariosProfesional "
                 + "WHERE id_profesional = ? AND dia_semana = ? AND id_horario != ? "
-                + "AND ((hora_inicio < ? AND hora_fin > ?) OR "
-                + "     (hora_inicio < ? AND hora_fin > ?) OR "
-                + "     (hora_inicio >= ? AND hora_fin <= ?))";
+                + "AND (? < hora_fin AND ? > hora_inicio)";  // ✅ Lógica simplificada
+
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, idProfesional);
             stmt.setString(2, diaSemana);
             stmt.setInt(3, idHorario);
-            stmt.setString(4, horaFin);
-            stmt.setString(5, horaInicio);
-            stmt.setString(6, horaFin);
-            stmt.setString(7, horaFin);
-            stmt.setString(8, horaInicio);
-            stmt.setString(9, horaFin);
+            stmt.setString(4, horaInicio);
+            stmt.setString(5, horaFin);
+
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total") > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * ✅ NUEVO: Verifica si un profesional trabaja un día específico
+     */
+    public boolean trabajaEnDia(int idProfesional, String diaSemana) {
+        String sql = "SELECT COUNT(*) as total FROM HorariosProfesional "
+                + "WHERE id_profesional = ? AND dia_semana = ? AND activo = TRUE";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idProfesional);
+            stmt.setString(2, diaSemana);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getInt("total") > 0;
@@ -309,7 +323,7 @@ public class HorarioProfesionalDAO {
             while (rs.next()) {
                 String hora = rs.getString("hora_cita");
                 // Convertir formato de TIME a HH:mm
-                if (hora.length() >= 5) {
+                if (hora != null && hora.length() >= 5) {
                     horasOcupadas.add(hora.substring(0, 5)); // "10:30:00" → "10:30"
                 }
             }
@@ -318,6 +332,43 @@ public class HorarioProfesionalDAO {
         }
 
         return horasOcupadas;
+    }
+
+    // ========== ESTADÍSTICAS Y UTILIDADES ==========
+    /**
+     * ✅ NUEVO: Cuenta horarios activos de un profesional
+     */
+    public int contarHorariosActivos(int idProfesional) {
+        int total = 0;
+        String sql = "SELECT COUNT(*) as total FROM HorariosProfesional "
+                + "WHERE id_profesional = ? AND activo = TRUE";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                total = rs.getInt("total");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return total;
+    }
+
+    /**
+     * ✅ NUEVO: Activa o desactiva un horario
+     */
+    public boolean cambiarEstadoHorario(int idHorario, boolean activo) {
+        String sql = "UPDATE HorariosProfesional SET activo = ? WHERE id_horario = ?";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setBoolean(1, activo);
+            stmt.setInt(2, idHorario);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // ========== MÉTODOS DE MAPEO ==========
@@ -352,4 +403,37 @@ public class HorarioProfesionalDAO {
         h.setNombreEspecialidad(rs.getString("nombre_especialidad"));
         return h;
     }
+
+    /**
+     * Obtiene horarios activos de un profesional para un día específico
+     */
+    public List<HorarioProfesional> obtenerHorariosPorDia(int idProfesional, String diaSemana) {
+        List<HorarioProfesional> horarios = new ArrayList<>();
+        String sql = "SELECT * FROM HorariosProfesional "
+                + "WHERE id_profesional = ? AND dia_semana = ? AND activo = TRUE "
+                + "ORDER BY hora_inicio";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, idProfesional);
+            stmt.setString(2, diaSemana);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                HorarioProfesional horario = new HorarioProfesional();
+                horario.setIdHorario(rs.getInt("id_horario"));
+                horario.setIdProfesional(rs.getInt("id_profesional"));
+                horario.setDiaSemana(rs.getString("dia_semana"));
+                horario.setHoraInicio(rs.getString("hora_inicio"));
+                horario.setHoraFin(rs.getString("hora_fin"));
+                horario.setDuracionConsulta(rs.getInt("duracion_consulta"));
+                horario.setActivo(rs.getBoolean("activo"));
+                horarios.add(horario);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return horarios;
+    }
+
 }

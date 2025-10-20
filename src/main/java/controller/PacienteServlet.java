@@ -3,6 +3,7 @@ package controller;
 import dao.PacienteDAO;
 import model.Paciente;
 import model.Usuario;
+import util.GeneradorCodigos;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
@@ -32,6 +33,7 @@ public class PacienteServlet extends HttpServlet {
 
         Usuario usuarioSesion = (Usuario) session.getAttribute("usuario");
         if (usuarioSesion.getIdRol() != 1) {
+            session.setAttribute("error", "Esta sección es solo para administradores");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -98,12 +100,23 @@ public class PacienteServlet extends HttpServlet {
 
         try {
             List<Paciente> pacientes = pacienteDAO.listarPacientes();
+
+            // Generar códigos para los pacientes
+            if (pacientes != null && !pacientes.isEmpty()) {
+                for (Paciente paciente : pacientes) {
+                    if (paciente.getCodigoPaciente() == null || paciente.getCodigoPaciente().isEmpty()) {
+                        paciente.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente()));
+                    }
+                }
+            }
+
             request.setAttribute("pacientes", pacientes);
             request.getRequestDispatcher("/admin/pacientes.jsp").forward(request, response);
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al cargar la lista de pacientes: " + e.getMessage());
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al cargar la lista de pacientes: " + e.getMessage());
             request.getRequestDispatcher("/admin/pacientes.jsp").forward(request, response);
         }
     }
@@ -122,7 +135,7 @@ public class PacienteServlet extends HttpServlet {
 
     // ========== CREAR PACIENTE ==========
     /**
-     * Crea un nuevo paciente con validación de DNI
+     * Crea un nuevo paciente con validación de DNI y email
      */
     private void crearPaciente(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -137,11 +150,33 @@ public class PacienteServlet extends HttpServlet {
             String telefono = request.getParameter("telefono");
             String email = request.getParameter("email");
 
-            // Validar que el DNI no exista
-            if (pacienteDAO.existeDNI(dni)) {
+            // Validar campos obligatorios
+            if (nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || dni == null || dni.trim().isEmpty()
+                    || fechaNacimiento == null || fechaNacimiento.trim().isEmpty()
+                    || genero == null || genero.trim().isEmpty()) {
+
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El DNI ya está registrado en el sistema");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+
+                // Mantener los datos del formulario
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni);
+                request.setAttribute("fechaNacimiento", fechaNacimiento);
+                request.setAttribute("genero", genero);
+                request.setAttribute("direccion", direccion);
+                request.setAttribute("telefono", telefono);
+                request.setAttribute("email", email);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Paciente");
+                request.getRequestDispatcher("/admin/pacientes-form.jsp").forward(request, response);
+                return;
+            }
+
+            // Validar que el DNI no exista
+            if (pacienteDAO.existeDNI(dni.trim())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI ya está registrado en el sistema");
 
                 // Mantener los datos del formulario
                 request.setAttribute("nombreCompleto", nombreCompleto);
@@ -158,10 +193,9 @@ public class PacienteServlet extends HttpServlet {
             }
 
             // Validar email si no está vacío
-            if (email != null && !email.trim().isEmpty() && pacienteDAO.existeEmail(email)) {
+            if (email != null && !email.trim().isEmpty() && pacienteDAO.existeEmail(email.trim())) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El email ya está registrado por otro paciente");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("warning", "El email ya está registrado por otro paciente");
 
                 // Mantener los datos del formulario
                 request.setAttribute("nombreCompleto", nombreCompleto);
@@ -179,19 +213,18 @@ public class PacienteServlet extends HttpServlet {
 
             // Crear objeto Paciente
             Paciente paciente = new Paciente();
-            paciente.setNombreCompleto(nombreCompleto);
-            paciente.setDni(dni);
+            paciente.setNombreCompleto(nombreCompleto.trim());
+            paciente.setDni(dni.trim());
             paciente.setFechaNacimiento(fechaNacimiento);
             paciente.setGenero(genero);
-            paciente.setDireccion(direccion);
-            paciente.setTelefono(telefono);
-            paciente.setEmail(email);
+            paciente.setDireccion(direccion != null ? direccion.trim() : null);
+            paciente.setTelefono(telefono != null ? telefono.trim() : null);
+            paciente.setEmail(email != null && !email.trim().isEmpty() ? email.trim() : null);
 
             HttpSession session = request.getSession();
 
             if (pacienteDAO.insertarPaciente(paciente)) {
-                session.setAttribute("mensaje", "Paciente creado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Paciente creado exitosamente");
             } else {
                 session.setAttribute("error", "Error al crear el paciente");
             }
@@ -214,10 +247,24 @@ public class PacienteServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idPaciente = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de paciente no especificado");
+                response.sendRedirect(request.getContextPath() + "/PacienteServlet");
+                return;
+            }
+
+            int idPaciente = Integer.parseInt(idParam);
             Paciente paciente = pacienteDAO.buscarPacientePorId(idPaciente);
 
             if (paciente != null) {
+                // Generar código si no existe
+                if (paciente.getCodigoPaciente() == null || paciente.getCodigoPaciente().isEmpty()) {
+                    paciente.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente()));
+                }
+
                 request.setAttribute("paciente", paciente);
                 request.setAttribute("accion", "actualizar");
                 request.setAttribute("tituloFormulario", "Editar Paciente");
@@ -228,6 +275,10 @@ public class PacienteServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/PacienteServlet");
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de paciente inválido");
+            response.sendRedirect(request.getContextPath() + "/PacienteServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -238,13 +289,22 @@ public class PacienteServlet extends HttpServlet {
 
     // ========== ACTUALIZAR PACIENTE ==========
     /**
-     * Actualiza un paciente existente con validación de DNI
+     * Actualiza un paciente existente con validación de DNI y email
      */
     private void actualizarPaciente(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
+            String idPacienteParam = request.getParameter("idPaciente");
+
+            if (idPacienteParam == null || idPacienteParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de paciente no especificado");
+                response.sendRedirect(request.getContextPath() + "/PacienteServlet");
+                return;
+            }
+
+            int idPaciente = Integer.parseInt(idPacienteParam);
             String nombreCompleto = request.getParameter("nombreCompleto");
             String dni = request.getParameter("dni");
             String fechaNacimiento = request.getParameter("fechaNacimiento");
@@ -254,10 +314,9 @@ public class PacienteServlet extends HttpServlet {
             String email = request.getParameter("email");
 
             // Validar que el DNI no esté usado por otro paciente
-            if (pacienteDAO.existeDNIExceptoPaciente(dni, idPaciente)) {
+            if (pacienteDAO.existeDNIExceptoPaciente(dni.trim(), idPaciente)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El DNI ya está registrado por otro paciente");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("warning", "El DNI ya está registrado por otro paciente");
 
                 Paciente paciente = pacienteDAO.buscarPacientePorId(idPaciente);
                 paciente.setNombreCompleto(nombreCompleto);
@@ -277,25 +336,28 @@ public class PacienteServlet extends HttpServlet {
             // Crear objeto Paciente
             Paciente paciente = new Paciente();
             paciente.setIdPaciente(idPaciente);
-            paciente.setNombreCompleto(nombreCompleto);
-            paciente.setDni(dni);
+            paciente.setNombreCompleto(nombreCompleto.trim());
+            paciente.setDni(dni.trim());
             paciente.setFechaNacimiento(fechaNacimiento);
             paciente.setGenero(genero);
-            paciente.setDireccion(direccion);
-            paciente.setTelefono(telefono);
-            paciente.setEmail(email);
+            paciente.setDireccion(direccion != null ? direccion.trim() : null);
+            paciente.setTelefono(telefono != null ? telefono.trim() : null);
+            paciente.setEmail(email != null && !email.trim().isEmpty() ? email.trim() : null);
 
             HttpSession session = request.getSession();
 
             if (pacienteDAO.actualizarPaciente(paciente)) {
-                session.setAttribute("mensaje", "Paciente actualizado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Paciente actualizado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar el paciente");
             }
 
             response.sendRedirect(request.getContextPath() + "/PacienteServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de paciente inválido");
+            response.sendRedirect(request.getContextPath() + "/PacienteServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -306,29 +368,48 @@ public class PacienteServlet extends HttpServlet {
 
     // ========== ELIMINAR PACIENTE ==========
     /**
-     * Elimina un paciente del sistema
+     * Elimina un paciente del sistema con validación de restricciones
      */
     private void eliminarPaciente(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            int idPaciente = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
 
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de paciente no especificado");
+                response.sendRedirect(request.getContextPath() + "/PacienteServlet");
+                return;
+            }
+
+            int idPaciente = Integer.parseInt(idParam);
             HttpSession session = request.getSession();
 
             if (pacienteDAO.eliminarPaciente(idPaciente)) {
-                session.setAttribute("mensaje", "Paciente eliminado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Paciente eliminado exitosamente");
             } else {
-                session.setAttribute("error", "No se pudo eliminar el paciente");
+                session.setAttribute("warning", "No se pudo eliminar el paciente. Puede tener citas registradas.");
             }
 
             response.sendRedirect(request.getContextPath() + "/PacienteServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de paciente inválido");
+            response.sendRedirect(request.getContextPath() + "/PacienteServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al eliminar el paciente: " + e.getMessage());
+
+            // Mensaje más específico para errores de integridad
+            String mensaje = e.getMessage();
+            if (mensaje != null && (mensaje.contains("foreign key constraint") || mensaje.contains("constraint"))) {
+                session.setAttribute("warning", "No se puede eliminar el paciente porque tiene citas, recetas o historiales registrados");
+            } else {
+                session.setAttribute("error", "Error al eliminar el paciente: " + mensaje);
+            }
+
             response.sendRedirect(request.getContextPath() + "/PacienteServlet");
         }
     }

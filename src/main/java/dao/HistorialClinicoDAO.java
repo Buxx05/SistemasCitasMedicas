@@ -14,9 +14,9 @@ public class HistorialClinicoDAO {
      */
     public boolean insertarHistorial(HistorialClinico historial) {
         String sql = "INSERT INTO HistorialClinico "
-                + "(id_paciente, id_profesional, id_cita, fecha_registro, "
+                + "(id_paciente, id_profesional, id_cita, fecha_registro, fecha_hora_registro, "
                 + "sintomas, diagnostico, tratamiento, observaciones) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -30,10 +30,11 @@ public class HistorialClinicoDAO {
             }
 
             stmt.setString(4, historial.getFechaRegistro());
-            stmt.setString(5, historial.getSintomas());
-            stmt.setString(6, historial.getDiagnostico());
-            stmt.setString(7, historial.getTratamiento());
-            stmt.setString(8, historial.getObservaciones());
+            stmt.setString(5, historial.getFechaHoraRegistro());
+            stmt.setString(6, historial.getSintomas());
+            stmt.setString(7, historial.getDiagnostico());
+            stmt.setString(8, historial.getTratamiento());
+            stmt.setString(9, historial.getObservaciones());
 
             int affectedRows = stmt.executeUpdate();
 
@@ -62,7 +63,9 @@ public class HistorialClinicoDAO {
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita "
                 + "FROM HistorialClinico h "
                 + "INNER JOIN Pacientes p ON h.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON h.id_profesional = prof.id_profesional "
@@ -97,7 +100,9 @@ public class HistorialClinicoDAO {
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita "
                 + "FROM HistorialClinico h "
                 + "INNER JOIN Pacientes p ON h.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON h.id_profesional = prof.id_profesional "
@@ -130,7 +135,9 @@ public class HistorialClinicoDAO {
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita "
                 + "FROM HistorialClinico h "
                 + "INNER JOIN Pacientes p ON h.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON h.id_profesional = prof.id_profesional "
@@ -244,12 +251,12 @@ public class HistorialClinicoDAO {
         historial.setIdPaciente(rs.getInt("id_paciente"));
         historial.setIdProfesional(rs.getInt("id_profesional"));
 
+        // ✅ MEJORADO: Obtener id_cita del ResultSet
         int idCita = rs.getInt("id_cita");
         historial.setIdCita(rs.wasNull() ? null : idCita);
 
         historial.setFechaRegistro(rs.getString("fecha_registro"));
         historial.setFechaHoraRegistro(rs.getString("fecha_hora_registro"));
-        historial.setDescripcion(rs.getString("descripcion"));
         historial.setSintomas(rs.getString("sintomas"));
         historial.setDiagnostico(rs.getString("diagnostico"));
         historial.setTratamiento(rs.getString("tratamiento"));

@@ -24,32 +24,63 @@ public class LoginServlet extends HttpServlet {
         String email = request.getParameter("email");
         String password = request.getParameter("password");
 
-        Usuario usuario = usuarioDAO.autenticar(email, password);
+        // Validación de campos vacíos
+        if (email == null || email.trim().isEmpty()
+                || password == null || password.trim().isEmpty()) {
+            request.setAttribute("warning", "Por favor, completa todos los campos");
+            request.getRequestDispatcher("/login.jsp").forward(request, response);
+            return;
+        }
 
-        if (usuario != null) {
-            // Crear sesión
-            HttpSession session = request.getSession();
-            session.setAttribute("usuario", usuario);
-            session.setAttribute("rol", usuario.getIdRol());
+        try {
+            Usuario usuario = usuarioDAO.autenticar(email.trim(), password);
 
-            // Redirigir según el rol usando SERVLETS (no JSP directo)
-            switch (usuario.getIdRol()) {
-                case 1: // Administrador
-                    response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
-                    break;
+            if (usuario != null) {
+                // Verificar que el usuario esté activo
+                if (!usuario.isActivo()) {
+                    request.setAttribute("error", "Tu cuenta ha sido desactivada. Contacta al administrador.");
+                    request.getRequestDispatcher("/login.jsp").forward(request, response);
+                    return;
+                }
 
-                case 2: // Especialista Médico
-                case 3: // Especialista No Médico
-                    response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
-                    break;
+                // Crear sesión
+                HttpSession session = request.getSession();
+                session.setMaxInactiveInterval(30 * 60); // 30 minutos
+                session.setAttribute("usuario", usuario);
+                session.setAttribute("rol", usuario.getIdRol());
 
-                default:
-                    response.sendRedirect(request.getContextPath() + "/login.jsp");
+                // Mensaje de bienvenida
+                session.setAttribute("success", "¡Bienvenido(a), " + usuario.getNombreCompleto() + "!");
+
+                // Redirigir según el rol
+                switch (usuario.getIdRol()) {
+                    case 1: // Administrador
+                        response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
+                        break;
+
+                    case 2: // Especialista Médico
+                        response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                        break;
+
+                    case 3: // Especialista No Médico
+                        response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                        break;
+
+                    default:
+                        // Rol no reconocido
+                        session.invalidate();
+                        request.setAttribute("error", "Rol de usuario no reconocido. Contacta al administrador.");
+                        request.getRequestDispatcher("/login.jsp").forward(request, response);
+                }
+            } else {
+                // Credenciales incorrectas
+                request.setAttribute("error", "Email o contraseña incorrectos");
+                request.getRequestDispatcher("/login.jsp").forward(request, response);
             }
-        } else {
-            // Credenciales incorrectas
-            request.setAttribute("error", "Email o contraseña incorrectos");
-            request.setAttribute("tipoMensaje", "danger");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("error", "Error al procesar el inicio de sesión. Por favor, intenta nuevamente.");
             request.getRequestDispatcher("/login.jsp").forward(request, response);
         }
     }

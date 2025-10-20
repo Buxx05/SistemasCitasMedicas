@@ -15,6 +15,11 @@ public class RecetaMedica {
     private String fechaVigencia;
     private String observaciones;
 
+    // ✅ AGREGAR: Atributos para códigos
+    private String codigoReceta;
+    private String codigoCita;
+    private String codigoPaciente;
+
     // Campos adicionales para JOINs (vistas)
     private String nombrePaciente;
     private String dniPaciente;
@@ -40,6 +45,7 @@ public class RecetaMedica {
     }
 
     // Getters y Setters
+
     public int getIdReceta() {
         return idReceta;
     }
@@ -136,7 +142,34 @@ public class RecetaMedica {
         this.observaciones = observaciones;
     }
 
+    // ✅ NUEVOS: Getters y Setters para códigos
+
+    public String getCodigoReceta() {
+        return codigoReceta;
+    }
+
+    public void setCodigoReceta(String codigoReceta) {
+        this.codigoReceta = codigoReceta;
+    }
+
+    public String getCodigoCita() {
+        return codigoCita;
+    }
+
+    public void setCodigoCita(String codigoCita) {
+        this.codigoCita = codigoCita;
+    }
+
+    public String getCodigoPaciente() {
+        return codigoPaciente;
+    }
+
+    public void setCodigoPaciente(String codigoPaciente) {
+        this.codigoPaciente = codigoPaciente;
+    }
+
     // Getters y Setters para campos de JOIN
+
     public String getNombrePaciente() {
         return nombrePaciente;
     }
@@ -197,6 +230,7 @@ public class RecetaMedica {
     public String toString() {
         return "RecetaMedica{"
                 + "idReceta=" + idReceta
+                + ", codigoReceta='" + codigoReceta + '\''
                 + ", idPaciente=" + idPaciente
                 + ", idProfesional=" + idProfesional
                 + ", fechaEmision='" + fechaEmision + '\''

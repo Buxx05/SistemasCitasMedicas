@@ -1,6 +1,14 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 
+<!-- CSS personalizado -->
+<style>
+.badge-lg {
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+}
+</style>
+
 <!-- Content Header -->
 <div class="content-header">
     <div class="container-fluid">
@@ -77,19 +85,25 @@
                         <ul class="list-group list-group-unbordered mb-3">
                             <li class="list-group-item">
                                 <b><i class="fas fa-envelope mr-2"></i>Email</b>
-                                <a class="float-right">${usuarioPerfil.email}</a>
+                                <span class="float-right">${usuarioPerfil.email}</span>
                             </li>
                             <li class="list-group-item">
                                 <b><i class="fas fa-phone mr-2"></i>Teléfono</b>
-                                <a class="float-right">${usuarioPerfil.telefono}</a>
+                                <span class="float-right">
+                                    ${not empty usuarioPerfil.telefono ? usuarioPerfil.telefono : 'No especificado'}
+                                </span>
                             </li>
                             <li class="list-group-item">
                                 <b><i class="fas fa-map-marker-alt mr-2"></i>Dirección</b>
-                                <span class="float-right text-muted">${usuarioPerfil.direccion}</span>
+                                <span class="float-right text-muted">
+                                    ${not empty usuarioPerfil.direccion ? usuarioPerfil.direccion : 'No especificada'}
+                                </span>
                             </li>
                             <li class="list-group-item">
                                 <b><i class="fas fa-id-card mr-2"></i>DNI</b>
-                                <a class="float-right">${usuarioPerfil.dni}</a>
+                                <span class="float-right">
+                                    ${not empty usuarioPerfil.dni ? usuarioPerfil.dni : 'No especificado'}
+                                </span>
                             </li>
                             <li class="list-group-item">
                                 <b><i class="fas fa-toggle-on mr-2"></i>Estado</b>
@@ -124,7 +138,8 @@
                     <div class="card-body">
                         <strong><i class="far fa-calendar-alt mr-2"></i> Fecha de Registro</strong>
                         <p class="text-muted">
-                            ${usuarioPerfil.fechaRegistro}
+                            <!-- ✅ Validar substring -->
+                            ${not empty usuarioPerfil.fechaRegistro && usuarioPerfil.fechaRegistro.length() >= 10 ? usuarioPerfil.fechaRegistro.substring(0, 10) : usuarioPerfil.fechaRegistro}
                         </p>
                         <hr/>
                         <strong><i class="far fa-clock mr-2"></i> Última Actualización</strong>
@@ -170,13 +185,18 @@
                                         <i class="fas fa-briefcase-medical mr-2"></i>
                                         Especialidad:
                                     </dt>
-                                    <dd class="col-sm-8">${profesional.nombreEspecialidad}</dd>
+                                    <dd class="col-sm-8">
+                                        ${not empty profesional.nombreEspecialidad ? profesional.nombreEspecialidad : 'No especificada'}
+                                    </dd>
 
                                     <dt class="col-sm-4">
                                         <i class="fas fa-certificate mr-2"></i>
                                         N° Colegiatura:
                                     </dt>
-                                    <dd class="col-sm-8">${profesional.numeroLicencia}</dd>  <!-- ✅ Cambiar aquí -->
+                                    <dd class="col-sm-8">
+                                        <!-- ✅ Usar el campo correcto según tu modelo -->
+                                        ${not empty profesional.numeroLicencia  ? profesional.numeroLicencia : 'No especificado'}
+                                    </dd>
 
                                     <c:if test="${not empty profesional.aniosExperiencia && profesional.aniosExperiencia > 0}">
                                         <dt class="col-sm-4">
@@ -207,7 +227,8 @@
                             <div class="info-box-content">
                                 <span class="info-box-text">Miembro Desde</span>
                                 <span class="info-box-number">
-                                    ${not empty usuarioPerfil.fechaRegistro ? usuarioPerfil.fechaRegistro.substring(0, 10) : 'N/A'}
+                                    <!-- ✅ Validar substring -->
+                                    ${not empty usuarioPerfil.fechaRegistro && usuarioPerfil.fechaRegistro.length() >= 10 ? usuarioPerfil.fechaRegistro.substring(0, 10) : 'N/A'}
                                 </span>
                             </div>
                         </div>
@@ -321,30 +342,30 @@
 
 <!-- Script -->
 <script>
-    (function () {
-        if (typeof jQuery === 'undefined')
-            return;
+$(document).ready(function () {
+    if (typeof jQuery === 'undefined') {
+        console.error('jQuery no está cargado');
+        return;
+    }
+    
+    // Validar que las contraseñas coincidan
+    $('#formCambiarPassword').on('submit', function (e) {
+        var passwordNueva = $('#passwordNueva').val();
+        var passwordConfirmar = $('#passwordConfirmar').val();
 
-        $(document).ready(function () {
-            // Validar que las contraseñas coincidan
-            $('#formCambiarPassword').on('submit', function (e) {
-                var passwordNueva = $('#passwordNueva').val();
-                var passwordConfirmar = $('#passwordConfirmar').val();
+        if (passwordNueva !== passwordConfirmar) {
+            e.preventDefault();
+            alert('⚠️ Las contraseñas no coinciden');
+            $('#passwordConfirmar').focus();
+            return false;
+        }
 
-                if (passwordNueva !== passwordConfirmar) {
-                    e.preventDefault();
-                    alert('⚠️ Las contraseñas no coinciden');
-                    $('#passwordConfirmar').focus();
-                    return false;
-                }
-
-                if (passwordNueva.length < 6) {
-                    e.preventDefault();
-                    alert('⚠️ La contraseña debe tener al menos 6 caracteres');
-                    $('#passwordNueva').focus();
-                    return false;
-                }
-            });
-        });
-    })();
+        if (passwordNueva.length < 6) {
+            e.preventDefault();
+            alert('⚠️ La contraseña debe tener al menos 6 caracteres');
+            $('#passwordNueva').focus();
+            return false;
+        }
+    });
+});
 </script>

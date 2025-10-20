@@ -33,18 +33,74 @@
 <section class="content">
     <div class="container-fluid">
 
-        <!-- Información de cita seleccionada -->
-        <c:if test="${not empty citaSeleccionada}">
+        <!-- Alertas -->
+        <jsp:include page="/componentes/alert.jsp"/>
+
+        <!-- Información de receta en edición -->
+        <c:if test="${not empty receta}">
             <div class="alert alert-info alert-dismissible fade show">
                 <button type="button" class="close" data-dismiss="alert">&times;</button>
-                <h5><i class="icon fas fa-info-circle"></i> Receta para Cita:</h5>
-                <strong>Paciente:</strong> ${citaSeleccionada.nombrePaciente} 
-                (DNI: ${citaSeleccionada.dniPaciente})<br/>
-                <strong>Fecha:</strong>
-                <fmt:parseDate value="${citaSeleccionada.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaPar"/>
-                <fmt:formatDate value="${fechaCitaPar}" pattern="dd/MM/yyyy"/>
-                a las ${citaSeleccionada.horaCita.substring(0, 5)}<br/>
-                <strong>Motivo:</strong> ${citaSeleccionada.motivoConsulta}
+                <h5>
+                    <i class="icon fas fa-file-prescription"></i> 
+                    Editando Receta: <span class="badge badge-light">${receta.codigoReceta}</span>
+                </h5>
+                <strong>Paciente:</strong> ${receta.nombrePaciente} (${receta.codigoPaciente})<br/>
+                <strong>Fecha Emisión:</strong> 
+                <fmt:parseDate value="${receta.fechaEmision}" pattern="yyyy-MM-dd" var="fechaEmi"/>
+                <fmt:formatDate value="${fechaEmi}" pattern="dd/MM/yyyy"/>
+            </div>
+        </c:if>
+
+        <!-- Información de cita seleccionada -->
+        <c:if test="${not empty citaSeleccionada}">
+            <div class="alert alert-success alert-dismissible fade show">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <h5>
+                    <i class="icon fas fa-calendar-check"></i> 
+                    Receta para Cita: <span class="badge badge-light">${citaSeleccionada.codigoCita}</span>
+                </h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Paciente:</strong> ${citaSeleccionada.nombrePaciente}<br/>
+                        <strong>DNI:</strong> ${citaSeleccionada.dniPaciente}
+                    </div>
+                    <div class="col-md-6">
+                        <c:if test="${not empty citaSeleccionada.fechaCita}">
+                            <strong>Fecha:</strong>
+                            <fmt:parseDate value="${citaSeleccionada.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaPar"/>
+                            <fmt:formatDate value="${fechaCitaPar}" pattern="dd/MM/yyyy"/>
+                            <c:if test="${not empty citaSeleccionada.horaCita && citaSeleccionada.horaCita.length() >= 5}">
+                                a las ${citaSeleccionada.horaCita.substring(0, 5)}
+                            </c:if>
+                            <br/>
+                        </c:if>
+                        <c:if test="${not empty citaSeleccionada.motivoConsulta}">
+                            <strong>Motivo:</strong> ${citaSeleccionada.motivoConsulta}
+                        </c:if>
+                    </div>
+                </div>
+            </div>
+        </c:if>
+
+        <!-- Información del paciente seleccionado -->
+        <c:if test="${not empty pacienteSeleccionado && empty citaSeleccionada}">
+            <div class="alert alert-info alert-dismissible fade show">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <h5>
+                    <i class="icon fas fa-user-circle"></i> 
+                    Paciente Seleccionado: <span class="badge badge-light">${pacienteSeleccionado.codigoPaciente}</span>
+                </h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Nombre:</strong> ${pacienteSeleccionado.nombreCompleto}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>DNI:</strong> ${pacienteSeleccionado.dni}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Edad:</strong> ${pacienteSeleccionado.edad} años
+                    </div>
+                </div>
             </div>
         </c:if>
 
@@ -77,6 +133,11 @@
                             <!-- SECCIÓN: Selección de Paciente y Cita (solo en nueva receta) -->
                             <c:if test="${empty receta}">
 
+                                <h5 class="mb-3">
+                                    <i class="fas fa-user-md text-primary mr-2"></i>
+                                    Selección de Paciente y Cita
+                                </h5>
+
                                 <div class="form-group">
                                     <label for="idPaciente">
                                         <i class="fas fa-user-circle mr-1"></i> 
@@ -90,11 +151,17 @@
                                         <option value="">-- Seleccione un paciente --</option>
                                         <c:forEach var="pac" items="${pacientes}">
                                             <option value="${pac.idPaciente}"
+                                                    data-codigo="${pac.codigoPaciente}"
                                                     <c:if test="${(not empty pacienteSeleccionado && pacienteSeleccionado.idPaciente == pac.idPaciente) || (not empty citaSeleccionada && citaSeleccionada.idPaciente == pac.idPaciente)}">selected</c:if>>
-                                                ${pac.nombreCompleto} - DNI: ${pac.dni}
-                                            </option>
+                                                [${pac.codigoPaciente}] ${pac.nombreCompleto} - DNI: ${pac.dni}
+                                                <c:if test="${pac.edad > 0}"> - ${pac.edad} años</c:if>
+                                                </option>
                                         </c:forEach>
                                     </select>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i>
+                                        Selecciona el paciente para ver sus citas completadas
+                                    </small>
                                 </div>
 
                                 <div class="form-group">
@@ -107,35 +174,61 @@
                                             name="idCita" 
                                             required>
                                         <option value="">-- Seleccione una cita completada --</option>
-                                        <c:if test="${not empty citasPaciente}">
-                                            <c:forEach var="cita" items="${citasPaciente}">
-                                                <option value="${cita.idCita}"
-                                                        <c:if test="${not empty citaSeleccionada && citaSeleccionada.idCita == cita.idCita}">selected</c:if>>
-                                                    <fmt:parseDate value="${cita.fechaCita}" pattern="yyyy-MM-dd" var="fechaCit"/>
-                                                    <fmt:formatDate value="${fechaCit}" pattern="dd/MM/yyyy"/>
-                                                    - ${cita.horaCita.substring(0, 5)} - ${cita.motivoConsulta}
-                                                </option>
-                                            </c:forEach>
-                                        </c:if>
+                                        <c:choose>
+                                            <c:when test="${not empty citasPaciente}">
+                                                <c:forEach var="cita" items="${citasPaciente}">
+                                                    <option value="${cita.idCita}"
+                                                            <c:if test="${not empty citaSeleccionada && citaSeleccionada.idCita == cita.idCita}">selected</c:if>>
+                                                        [${cita.codigoCita}] 
+                                                        <fmt:parseDate value="${cita.fechaCita}" pattern="yyyy-MM-dd" var="fechaCit"/>
+                                                        <fmt:formatDate value="${fechaCit}" pattern="dd/MM/yyyy"/>
+                                                        - ${not empty cita.horaCita && cita.horaCita.length() >= 5 ? cita.horaCita.substring(0, 5) : 'N/A'}
+                                                        - ${not empty cita.motivoConsulta ? cita.motivoConsulta : 'Sin motivo'}
+                                                    </option>
+                                                </c:forEach>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <option disabled>Seleccione primero un paciente</option>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </select>
                                     <small class="form-text text-muted">
+                                        <i class="fas fa-check-circle"></i>
                                         Solo se muestran citas completadas del paciente seleccionado
                                     </small>
                                 </div>
+
+                                <hr class="my-4">
 
                             </c:if>
 
                             <!-- SECCIÓN: Información del Paciente (solo en edición) -->
                             <c:if test="${not empty receta}">
                                 <div class="alert alert-light border">
-                                    <strong><i class="fas fa-user-circle mr-2"></i>Paciente:</strong> 
-                                    ${receta.nombrePaciente}<br/>
-                                    <strong><i class="fas fa-id-card mr-2"></i>DNI:</strong> 
-                                    ${receta.dniPaciente}
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong><i class="fas fa-user-circle text-primary mr-2"></i>Paciente:</strong> 
+                                            ${receta.nombrePaciente}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong><i class="fas fa-id-badge text-info mr-2"></i>Código:</strong> 
+                                            ${receta.codigoPaciente}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong><i class="fas fa-id-card text-secondary mr-2"></i>DNI:</strong> 
+                                            ${receta.dniPaciente}
+                                        </div>
+                                    </div>
                                 </div>
                             </c:if>
 
-                            <!-- SECCIÓN: Medicamentos -->
+                            <!-- SECCIÓN: Prescripción Médica -->
+                            <h5 class="mb-3">
+                                <i class="fas fa-pills text-success mr-2"></i>
+                                Prescripción Médica
+                            </h5>
+
+                            <!-- Medicamentos -->
                             <div class="form-group">
                                 <label for="medicamentos">
                                     <i class="fas fa-pills mr-1"></i> 
@@ -145,39 +238,48 @@
                                           id="medicamentos" 
                                           name="medicamentos" 
                                           rows="3" 
-                                          placeholder="Ejemplo: Losartán 50mg, Paracetamol 500mg"
+                                          placeholder="Ejemplo: Losartán 50mg, Paracetamol 500mg, Omeprazol 20mg"
                                           required><c:if test="${not empty receta}">${receta.medicamentos}</c:if></textarea>
+                                          <small class="form-text text-muted">
+                                              Ingrese los medicamentos con su concentración
+                                          </small>
                                 </div>
 
-                                <!-- SECCIÓN: Dosis -->
-                                <div class="form-group">
-                                    <label for="dosis">
-                                        <i class="fas fa-prescription-bottle mr-1"></i> 
-                                        Dosis <span class="text-danger">*</span>
-                                    </label>
-                                    <textarea class="form-control" 
-                                              id="dosis" 
-                                              name="dosis" 
-                                              rows="2" 
-                                              placeholder="Ejemplo: 1 tableta, 1 cápsula"
-                                              required><c:if test="${not empty receta}">${receta.dosis}</c:if></textarea>
+                                <div class="row">
+                                    <!-- Dosis -->
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="dosis">
+                                                <i class="fas fa-prescription-bottle mr-1"></i> 
+                                                Dosis <span class="text-danger">*</span>
+                                            </label>
+                                            <textarea class="form-control" 
+                                                      id="dosis" 
+                                                      name="dosis" 
+                                                      rows="2" 
+                                                      placeholder="Ejemplo: 1 tableta, 1 cápsula, 5ml"
+                                                      required><c:if test="${not empty receta}">${receta.dosis}</c:if></textarea>
+                                        </div>
+                                    </div>
+
+                                    <!-- Frecuencia -->
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="frecuencia">
+                                                <i class="fas fa-clock mr-1"></i> 
+                                                Frecuencia <span class="text-danger">*</span>
+                                            </label>
+                                            <textarea class="form-control" 
+                                                      id="frecuencia" 
+                                                      name="frecuencia" 
+                                                      rows="2" 
+                                                      placeholder="Ejemplo: 1 vez al día (mañana), Cada 8 horas, 3 veces al día"
+                                                      required><c:if test="${not empty receta}">${receta.frecuencia}</c:if></textarea>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <!-- SECCIÓN: Frecuencia -->
-                                <div class="form-group">
-                                    <label for="frecuencia">
-                                        <i class="fas fa-clock mr-1"></i> 
-                                        Frecuencia <span class="text-danger">*</span>
-                                    </label>
-                                    <textarea class="form-control" 
-                                              id="frecuencia" 
-                                              name="frecuencia" 
-                                              rows="2" 
-                                              placeholder="Ejemplo: 1 vez al día (mañana), Cada 8 horas"
-                                              required><c:if test="${not empty receta}">${receta.frecuencia}</c:if></textarea>
-                                </div>
-
-                                <!-- SECCIÓN: Duración y Vigencia (en 2 columnas) -->
+                                <!-- Duración y Vigencia -->
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
@@ -189,8 +291,11 @@
                                                    class="form-control" 
                                                    id="duracion" 
                                                    name="duracion" 
-                                                   placeholder="Ejemplo: 7 días, 1 mes"
+                                                   placeholder="Ejemplo: 7 días, 2 semanas, 1 mes"
                                                    value="${not empty receta ? receta.duracion : ''}"/>
+                                        <small class="form-text text-muted">
+                                            Tiempo de duración del tratamiento
+                                        </small>
                                     </div>
                                 </div>
 
@@ -206,11 +311,22 @@
                                                name="fechaVigencia" 
                                                value="${not empty receta ? receta.fechaVigencia : ''}"
                                                required/>
+                                        <small class="form-text text-muted">
+                                            Fecha hasta la cual la receta es válida
+                                        </small>
                                     </div>
                                 </div>
                             </div>
 
+                            <hr class="my-4">
+
                             <!-- SECCIÓN: Indicaciones -->
+                            <h5 class="mb-3">
+                                <i class="fas fa-exclamation-triangle text-warning mr-2"></i>
+                                Indicaciones y Observaciones
+                            </h5>
+
+                            <!-- Indicaciones -->
                             <div class="form-group">
                                 <label for="indicaciones">
                                     <i class="fas fa-exclamation-triangle mr-1"></i> 
@@ -220,11 +336,14 @@
                                           id="indicaciones" 
                                           name="indicaciones" 
                                           rows="3" 
-                                          placeholder="Instrucciones de uso, precauciones..."
+                                          placeholder="Instrucciones de uso, precauciones, interacciones, etc."
                                           required><c:if test="${not empty receta}">${receta.indicaciones}</c:if></textarea>
+                                          <small class="form-text text-muted">
+                                              Instrucciones importantes para el paciente
+                                          </small>
                                 </div>
 
-                                <!-- SECCIÓN: Observaciones -->
+                                <!-- Observaciones -->
                                 <div class="form-group">
                                     <label for="observaciones">
                                         <i class="fas fa-sticky-note mr-1"></i> 
@@ -234,7 +353,10 @@
                                               id="observaciones" 
                                               name="observaciones" 
                                               rows="2" 
-                                              placeholder="Notas adicionales..."><c:if test="${not empty receta}">${receta.observaciones}</c:if></textarea>
+                                              placeholder="Notas adicionales, recomendaciones especiales..."><c:if test="${not empty receta}">${receta.observaciones}</c:if></textarea>
+                                    <small class="form-text text-muted">
+                                        Información complementaria (opcional)
+                                    </small>
                                 </div>
 
                             </div>
@@ -245,11 +367,14 @@
                                     <i class="fas fa-save mr-2"></i> 
                                 ${empty receta ? 'Emitir Receta' : 'Guardar Cambios'}
                             </button>
-                            <a href="${pageContext.request.contextPath}/RecetaMedicaServlet" 
-                               class="btn btn-secondary btn-lg">
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="confirmarCancelar()">
                                 <i class="fas fa-times mr-2"></i> 
                                 Cancelar
-                            </a>
+                            </button>
+                            <small class="text-muted float-right mt-2">
+                                <i class="fas fa-info-circle"></i>
+                                Los campos con <span class="text-danger">*</span> son obligatorios
+                            </small>
                         </div>
 
                     </form>
@@ -267,56 +392,117 @@
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<!-- Script -->
+<!-- ✅ Script con SweetAlert2 -->
 <script>
-                                                (function () {
-                                                    if (typeof jQuery === 'undefined') {
-                                                        console.error('jQuery no está cargado');
-                                                        return;
-                                                    }
+                                const contextPath = '${pageContext.request.contextPath}';
 
-                                                    $(document).ready(function () {
-                                                        // Inicializar Select2
-                                                        if (typeof $.fn.select2 !== 'undefined') {
-                                                            $('.select2').select2({
-                                                                theme: 'bootstrap4',
-                                                                placeholder: '-- Seleccione un paciente --',
-                                                                allowClear: true,
-                                                                width: '100%'
-                                                            });
-                                                        }
+                                $(document).ready(function () {
+                                    // Verificar jQuery
+                                    if (typeof jQuery === 'undefined') {
+                                        console.error('jQuery no está cargado');
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error de carga',
+                                            text: 'jQuery no se cargó correctamente. Por favor, recarga la página.',
+                                            confirmButtonColor: '#dc3545'
+                                        });
+                                        return;
+                                    }
 
-                                                        // Auto-establecer fecha vigencia (+30 días) si es nueva receta
+                                    // Inicializar Select2
+                                    if (typeof $.fn.select2 !== 'undefined') {
+                                        $('.select2').select2({
+                                            theme: 'bootstrap4',
+                                            placeholder: '-- Seleccione un paciente --',
+                                            allowClear: true,
+                                            width: '100%'
+                                        });
+                                    } else {
+                                        console.warn('Select2 no está cargado');
+                                    }
+
+                                    // Auto-establecer fecha vigencia (+30 días) si es nueva receta
     <c:if test="${empty receta}">
-                                                        var hoy = new Date();
-                                                        var vigencia = new Date(hoy.getTime() + (30 * 24 * 60 * 60 * 1000));
-                                                        $('#fechaVigencia').val(vigencia.toISOString().split('T')[0]);
+                                    var hoy = new Date();
+                                    var vigencia = new Date(hoy.getTime() + (30 * 24 * 60 * 60 * 1000));
+                                    $('#fechaVigencia').val(vigencia.toISOString().split('T')[0]);
     </c:if>
 
-                                                        // Establecer fecha mínima = hoy
-                                                        var hoyISO = new Date().toISOString().split('T')[0];
-                                                        $('#fechaVigencia').attr('min', hoyISO);
+                                    // Establecer fecha mínima = hoy
+                                    var hoyISO = new Date().toISOString().split('T')[0];
+                                    $('#fechaVigencia').attr('min', hoyISO);
 
-                                                        // Validar formulario antes de enviar
-                                                        $('#recetaForm').on('submit', function (e) {
-                                                            if (this.checkValidity() === false) {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                            }
-                                                            $(this).addClass('was-validated');
-                                                        });
-                                                    });
-                                                })();
+                                    // ✅ Validar formulario con SweetAlert2
+                                    $('#recetaForm').on('submit', function (e) {
+                                        if (this.checkValidity() === false) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
 
-                                                /**
-                                                 * Carga las citas del paciente seleccionado
-                                                 * Realiza un reload de la página con el parámetro del paciente
-                                                 */
-                                                function cargarCitasPaciente(idPaciente) {
-                                                    if (!idPaciente) {
-                                                        document.getElementById('idCita').innerHTML = '<option value="">-- Seleccione una cita completada --</option>';
-                                                        return;
-                                                    }
-                                                    window.location.href = '${pageContext.request.contextPath}/RecetaMedicaServlet?accion=nueva&idPaciente=' + idPaciente;
-                                                }
+                                            // Encontrar el primer campo inválido
+                                            var primerInvalido = $(this).find(':invalid').first();
+                                            var nombreCampo = primerInvalido.attr('name') || 'campo';
+
+                                            Swal.fire({
+                                                icon: 'warning',
+                                                title: 'Campos incompletos',
+                                                text: 'Por favor, completa todos los campos obligatorios antes de continuar.',
+                                                confirmButtonColor: '#ffc107'
+                                            });
+
+                                            // Hacer scroll al primer campo inválido
+                                            if (primerInvalido.length) {
+                                                $('html, body').animate({
+                                                    scrollTop: primerInvalido.offset().top - 100
+                                                }, 500);
+                                                primerInvalido.focus();
+                                            }
+                                        }
+                                        $(this).addClass('was-validated');
+                                    });
+                                });
+
+                                /**
+                                 * ✅ Confirmar cancelación con SweetAlert2
+                                 */
+                                function confirmarCancelar() {
+                                    // Verificar si hay datos en los campos principales
+                                    var medicamentos = $('#medicamentos').val().trim();
+                                    var dosis = $('#dosis').val().trim();
+                                    var frecuencia = $('#frecuencia').val().trim();
+                                    var indicaciones = $('#indicaciones').val().trim();
+
+                                    var hayCambios = medicamentos !== '' || dosis !== '' || frecuencia !== '' || indicaciones !== '';
+
+                                    if (hayCambios) {
+                                        Swal.fire({
+                                            title: '¿Cancelar sin guardar?',
+                                            html: 'Tienes cambios sin guardar en la receta.<br>¿Estás seguro de que deseas salir?',
+                                            icon: 'question',
+                                            showCancelButton: true,
+                                            confirmButtonColor: '#6c757d',
+                                            cancelButtonColor: '#007bff',
+                                            confirmButtonText: '<i class="fas fa-times"></i> Sí, salir',
+                                            cancelButtonText: '<i class="fas fa-arrow-left"></i> Continuar editando',
+                                            reverseButtons: true
+                                        }).then((result) => {
+                                            if (result.isConfirmed) {
+                                                window.location.href = contextPath + '/RecetaMedicaServlet';
+                                            }
+                                        });
+                                    } else {
+                                        // Si no hay cambios, redirigir directamente
+                                        window.location.href = contextPath + '/RecetaMedicaServlet';
+                                    }
+                                }
+
+                                /**
+                                 * Carga las citas del paciente seleccionado
+                                 */
+                                function cargarCitasPaciente(idPaciente) {
+                                    if (!idPaciente) {
+                                        $('#idCita').html('<option value="">-- Seleccione una cita completada --</option>');
+                                        return;
+                                    }
+                                    window.location.href = contextPath + '/RecetaMedicaServlet?accion=nueva&idPaciente=' + idPaciente;
+                                }
 </script>

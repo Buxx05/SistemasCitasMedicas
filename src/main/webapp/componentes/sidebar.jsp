@@ -16,7 +16,18 @@
         <!-- User Panel -->
         <div class="user-panel mt-3 pb-3 mb-3 d-flex">
             <div class="image">
-                <i class="far fa-user-circle fa-2x text-white"></i>
+                <!-- ✅ Foto de perfil dinámica -->
+                <c:choose>
+                    <c:when test="${not empty sessionScope.usuario.fotoPerfil}">
+                        <img src="${pageContext.request.contextPath}/uploads/perfiles/${sessionScope.usuario.fotoPerfil}" 
+                             class="img-circle elevation-2" 
+                             alt="Foto de perfil"
+                             style="width: 2.1rem; height: 2.1rem; object-fit: cover;">
+                    </c:when>
+                    <c:otherwise>
+                        <i class="far fa-user-circle fa-2x text-white"></i>
+                    </c:otherwise>
+                </c:choose>
             </div>
             <div class="info">
                 <c:choose>
@@ -143,6 +154,15 @@
                             <p>Mis Horarios</p>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a href="${pageContext.request.contextPath}/CalendarioServlet" 
+                           class="nav-link ${pageActive == 'calendario' ? 'active' : ''}">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Calendario</p>
+                        </a>
+                    </li>
+
                 </c:if>
 
                 <!-- ========== MENÚ PROFESIONAL NO MÉDICO ========== -->
@@ -173,7 +193,6 @@
                         </a>
                     </li>
 
-                    <!-- AGREGAR RECETAS PARA ROL 3 -->
                     <li class="nav-item">
                         <a href="${pageContext.request.contextPath}/RecetaMedicaServlet" 
                            class="nav-link ${pageActive == 'recetas' ? 'active' : ''}">
@@ -189,11 +208,18 @@
                             <p>Mis Horarios</p>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a href="${pageContext.request.contextPath}/CalendarioServlet" 
+                           class="nav-link ${pageActive == 'calendario' ? 'active' : ''}">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Calendario</p>
+                        </a>
+                    </li>
                 </c:if>
 
-
-                <!-- ========== CUENTA (COMÚN PARA TODOS) ========== -->
-                <li class="nav-header">CONFIGURACIÓN</li>
+                <!-- ========== MI CUENTA (COMÚN PARA TODOS) ========== -->
+                <li class="nav-header">MI CUENTA</li>
 
                 <li class="nav-item">
                     <a href="${pageContext.request.contextPath}/PerfilServlet" 

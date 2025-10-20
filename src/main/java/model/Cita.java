@@ -1,5 +1,7 @@
 package model;
 
+import util.GeneradorCodigos;
+
 public class Cita {
 
     private int idCita;
@@ -20,6 +22,8 @@ public class Cita {
     private String nombreEspecialidad;
     private String emailPaciente;
     private String telefonoPaciente;
+
+    private String codigoCita;
 
     public Cita() {
     }
@@ -160,5 +164,28 @@ public class Cita {
 
     public void setTelefonoPaciente(String telefonoPaciente) {
         this.telefonoPaciente = telefonoPaciente;
+    }
+
+    public String getCodigoCita() {
+        if (codigoCita == null && idCita > 0) {
+            // Extraer año de la fecha de la cita
+            try {
+                if (fechaCita != null && fechaCita.length() >= 4) {
+                    int anio = Integer.parseInt(fechaCita.substring(0, 4)); // "2025-10-20" → 2025
+                    codigoCita = GeneradorCodigos.generarCodigoCita(idCita, anio);
+                } else {
+                    // Si no hay fecha, usar año actual
+                    codigoCita = GeneradorCodigos.generarCodigoCita(idCita);
+                }
+            } catch (Exception e) {
+                // En caso de error, usar año actual
+                codigoCita = GeneradorCodigos.generarCodigoCita(idCita);
+            }
+        }
+        return codigoCita;
+    }
+
+    public void setCodigoCita(String codigoCita) {
+        this.codigoCita = codigoCita;
     }
 }

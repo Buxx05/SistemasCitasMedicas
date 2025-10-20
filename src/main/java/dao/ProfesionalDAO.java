@@ -5,6 +5,7 @@ import util.ConexionDB;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import util.GeneradorCodigos;
 
 public class ProfesionalDAO {
 
@@ -186,15 +187,23 @@ public class ProfesionalDAO {
                 // Datos del usuario
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
+                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
                 profesional.setActivo(rs.getBoolean("activo"));
 
                 // Datos adicionales
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
 
-                // ✅ En cada while (rs.next()) de estos métodos, agregar:
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
+
+                // ⬇️ MODIFICAR ESTA LÍNEA - Ahora usa idRol
+                profesional.setCodigoProfesional(
+                        GeneradorCodigos.generarCodigoProfesional(
+                                profesional.getIdProfesional(),
+                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        )
+                );
 
                 profesionales.add(profesional);
             }
@@ -229,21 +238,30 @@ public class ProfesionalDAO {
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
 
-                // ✅ AGREGAR estos campos
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
 
                 // Datos del usuario
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
+                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
                 profesional.setActivo(rs.getBoolean("activo"));
 
                 // Datos adicionales
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
 
+                // ⬇️ MODIFICAR ESTA LÍNEA
+                profesional.setCodigoProfesional(
+                        GeneradorCodigos.generarCodigoProfesional(
+                                profesional.getIdProfesional(),
+                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        )
+                );
+
                 return profesional;
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -383,12 +401,20 @@ public class ProfesionalDAO {
                 profesional.setTelefono(rs.getString("telefono"));
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
+                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
                 profesional.setActivo(rs.getBoolean("activo"));
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
-                // ✅ En cada while (rs.next()) de estos métodos, agregar:
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
+
+                // ⬇️ MODIFICAR ESTA LÍNEA
+                profesional.setCodigoProfesional(
+                        GeneradorCodigos.generarCodigoProfesional(
+                                profesional.getIdProfesional(),
+                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        )
+                );
 
                 profesionales.add(profesional);
             }

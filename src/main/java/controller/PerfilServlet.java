@@ -112,7 +112,6 @@ public class PerfilServlet extends HttpServlet {
                 int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
                 if (idProfesional > 0) {
-                    // ✅ CAMBIO: Usar método con JOIN
                     Profesional profesional = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
 
                     if (profesional != null) {
@@ -137,11 +136,10 @@ public class PerfilServlet extends HttpServlet {
             session.setAttribute("error", "Error al cargar el perfil: " + e.getMessage());
 
             response.sendRedirect(request.getContextPath() + dashboardURL);
-            return;
         }
     }
 
-// ========== MOSTRAR FORMULARIO EDITAR ==========
+    // ========== MOSTRAR FORMULARIO EDITAR ==========
     private void mostrarFormularioEditar(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
@@ -156,7 +154,6 @@ public class PerfilServlet extends HttpServlet {
                 int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
                 if (idProfesional > 0) {
-                    // ✅ CAMBIO: Usar método con JOIN
                     Profesional profesional = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
 
                     if (profesional != null) {
@@ -177,7 +174,6 @@ public class PerfilServlet extends HttpServlet {
             session.setAttribute("error", "Error al cargar el formulario: " + e.getMessage());
 
             response.sendRedirect(request.getContextPath() + "/PerfilServlet");
-            return;
         }
     }
 
@@ -192,11 +188,19 @@ public class PerfilServlet extends HttpServlet {
             String direccion = request.getParameter("direccion");
             String biografia = request.getParameter("biografia");
 
+            // Validar campo obligatorio
+            if (nombreCompleto == null || nombreCompleto.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "El nombre completo es obligatorio");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=editar");
+                return;
+            }
+
             // Actualizar objeto usuario
-            usuario.setNombreCompleto(nombreCompleto);
-            usuario.setTelefono(telefono);
-            usuario.setDireccion(direccion);
-            usuario.setBiografia(biografia);
+            usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setTelefono(telefono != null ? telefono.trim() : null);
+            usuario.setDireccion(direccion != null ? direccion.trim() : null);
+            usuario.setBiografia(biografia != null ? biografia.trim() : null);
 
             HttpSession session = request.getSession();
 
@@ -206,10 +210,19 @@ public class PerfilServlet extends HttpServlet {
                     String biografiaProfesional = request.getParameter("biografiaProfesional");
                     String aniosExperienciaStr = request.getParameter("aniosExperiencia");
 
-                    if (biografiaProfesional != null && aniosExperienciaStr != null) {
-                        int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-                        int aniosExperiencia = Integer.parseInt(aniosExperienciaStr);
-                        usuarioDAO.actualizarPerfilProfesional(idProfesional, biografiaProfesional, aniosExperiencia);
+                    if (biografiaProfesional != null && aniosExperienciaStr != null && !aniosExperienciaStr.trim().isEmpty()) {
+                        try {
+                            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
+                            int aniosExperiencia = Integer.parseInt(aniosExperienciaStr);
+
+                            if (aniosExperiencia < 0 || aniosExperiencia > 100) {
+                                session.setAttribute("warning", "Los años de experiencia deben estar entre 0 y 100");
+                            } else {
+                                usuarioDAO.actualizarPerfilProfesional(idProfesional, biografiaProfesional.trim(), aniosExperiencia);
+                            }
+                        } catch (NumberFormatException e) {
+                            session.setAttribute("warning", "Años de experiencia inválido");
+                        }
                     }
                 }
 
@@ -217,8 +230,7 @@ public class PerfilServlet extends HttpServlet {
                 Usuario usuarioActualizado = usuarioDAO.buscarUsuarioPorIdCompleto(usuario.getIdUsuario());
                 session.setAttribute("usuario", usuarioActualizado);
 
-                session.setAttribute("mensaje", "Perfil actualizado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Perfil actualizado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar el perfil");
             }
@@ -252,32 +264,44 @@ public class PerfilServlet extends HttpServlet {
 
             HttpSession session = request.getSession();
 
+            // Validar campos obligatorios
+            if (passwordAntigua == null || passwordAntigua.trim().isEmpty()
+                    || passwordNueva == null || passwordNueva.trim().isEmpty()
+                    || passwordConfirmar == null || passwordConfirmar.trim().isEmpty()) {
+                session.setAttribute("error", "Todos los campos son obligatorios");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=cambiarPassword");
+                return;
+            }
+
             // Validar que las contraseñas coincidan
             if (!passwordNueva.equals(passwordConfirmar)) {
-                session.setAttribute("error", "Las contraseñas no coinciden");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "Las contraseñas nuevas no coinciden");
                 response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=cambiarPassword");
                 return;
             }
 
             // Validar longitud mínima
             if (passwordNueva.length() < 6) {
-                session.setAttribute("error", "La contraseña debe tener al menos 6 caracteres");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "La contraseña debe tener al menos 6 caracteres");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=cambiarPassword");
+                return;
+            }
+
+            // Validar que la nueva contraseña sea diferente
+            if (passwordAntigua.equals(passwordNueva)) {
+                session.setAttribute("warning", "La nueva contraseña debe ser diferente a la actual");
                 response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=cambiarPassword");
                 return;
             }
 
             // Cambiar contraseña
             if (usuarioDAO.cambiarPassword(usuario.getIdUsuario(), passwordAntigua, passwordNueva)) {
-                session.setAttribute("mensaje", "Contraseña actualizada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Contraseña actualizada exitosamente");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet");
             } else {
-                session.setAttribute("error", "La contraseña actual es incorrecta");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "La contraseña actual es incorrecta");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=cambiarPassword");
             }
-
-            response.sendRedirect(request.getContextPath() + "/PerfilServlet");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -294,48 +318,60 @@ public class PerfilServlet extends HttpServlet {
         try {
             Part filePart = request.getPart("fotoPerfil");
 
-            if (filePart != null && filePart.getSize() > 0) {
-                String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                String fileExtension = fileName.substring(fileName.lastIndexOf("."));
+            if (filePart == null || filePart.getSize() == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "No se seleccionó ninguna imagen");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=editar");
+                return;
+            }
 
-                // Validar extensión
-                if (!fileExtension.matches("\\.(jpg|jpeg|png|gif)")) {
-                    HttpSession session = request.getSession();
-                    session.setAttribute("error", "Solo se permiten imágenes (JPG, PNG, GIF)");
-                    response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=editar");
-                    return;
-                }
+            // Validar tamaño del archivo (adicional a la configuración de @MultipartConfig)
+            if (filePart.getSize() > 10 * 1024 * 1024) { // 10MB
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "La imagen no puede superar los 10MB");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=editar");
+                return;
+            }
 
-                // Generar nombre único
-                String uniqueFileName = usuario.getIdUsuario() + "_" + System.currentTimeMillis() + fileExtension;
+            String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+            String fileExtension = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
 
-                // Obtener ruta del directorio de subida
-                String uploadPath = getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
-                File uploadDir = new File(uploadPath);
-                if (!uploadDir.exists()) {
-                    uploadDir.mkdirs();
-                }
+            // Validar extensión
+            if (!fileExtension.matches("\\.(jpg|jpeg|png|gif)")) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "Solo se permiten imágenes (JPG, PNG, GIF)");
+                response.sendRedirect(request.getContextPath() + "/PerfilServlet?accion=editar");
+                return;
+            }
 
-                // Guardar archivo
-                String filePath = uploadPath + File.separator + uniqueFileName;
-                try (InputStream input = filePart.getInputStream()) {
-                    Files.copy(input, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
-                }
+            // Generar nombre único
+            String uniqueFileName = usuario.getIdUsuario() + "_" + System.currentTimeMillis() + fileExtension;
 
-                // Actualizar en BD
-                if (usuarioDAO.actualizarFotoPerfil(usuario.getIdUsuario(), uniqueFileName)) {
-                    usuario.setFotoPerfil(uniqueFileName);
+            // Obtener ruta del directorio de subida
+            String uploadPath = getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+            File uploadDir = new File(uploadPath);
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
 
-                    // Actualizar en sesión
-                    HttpSession session = request.getSession();
-                    session.setAttribute("usuario", usuario);
+            // Guardar archivo
+            String filePath = uploadPath + File.separator + uniqueFileName;
+            try (InputStream input = filePart.getInputStream()) {
+                Files.copy(input, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
+            }
 
-                    session.setAttribute("mensaje", "Foto de perfil actualizada exitosamente");
-                    session.setAttribute("tipoMensaje", "success");
-                } else {
-                    HttpSession session = request.getSession();
-                    session.setAttribute("error", "Error al guardar la foto en la base de datos");
-                }
+            // Actualizar en BD
+            if (usuarioDAO.actualizarFotoPerfil(usuario.getIdUsuario(), uniqueFileName)) {
+                usuario.setFotoPerfil(uniqueFileName);
+
+                // Actualizar en sesión
+                HttpSession session = request.getSession();
+                session.setAttribute("usuario", usuario);
+
+                session.setAttribute("success", "Foto de perfil actualizada exitosamente");
+            } else {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Error al guardar la foto en la base de datos");
             }
 
             response.sendRedirect(request.getContextPath() + "/PerfilServlet");
@@ -349,9 +385,11 @@ public class PerfilServlet extends HttpServlet {
     }
 
     // ========== MÉTODO AUXILIAR ==========
+    /**
+     * Determina la vista JSP según el rol del usuario
+     */
     private String determinarVistaPorRol(int idRol, String vista) {
         // Todos los roles usan los mismos JSPs en /componentes/
         return "/componentes/" + vista + ".jsp";
     }
-
 }

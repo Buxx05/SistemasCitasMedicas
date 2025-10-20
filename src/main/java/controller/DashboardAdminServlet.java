@@ -4,6 +4,7 @@ import dao.UsuarioDAO;
 import dao.ProfesionalDAO;
 import dao.PacienteDAO;
 import dao.CitaDAO;
+import dao.EspecialidadDAO;
 import model.Usuario;
 import model.Cita;
 import javax.servlet.ServletException;
@@ -19,6 +20,7 @@ public class DashboardAdminServlet extends HttpServlet {
     private ProfesionalDAO profesionalDAO;
     private PacienteDAO pacienteDAO;
     private CitaDAO citaDAO;
+    private EspecialidadDAO especialidadDAO;
 
     @Override
     public void init() {
@@ -26,6 +28,7 @@ public class DashboardAdminServlet extends HttpServlet {
         profesionalDAO = new ProfesionalDAO();
         pacienteDAO = new PacienteDAO();
         citaDAO = new CitaDAO();
+        especialidadDAO = new EspecialidadDAO();
     }
 
     @Override
@@ -43,6 +46,7 @@ public class DashboardAdminServlet extends HttpServlet {
 
         // Verificar que sea administrador (rol 1)
         if (usuario.getIdRol() != 1) {
+            session.setAttribute("error", "No tienes permisos para acceder al panel de administración");
             response.sendRedirect(request.getContextPath() + "/index.jsp");
             return;
         }
@@ -62,13 +66,17 @@ public class DashboardAdminServlet extends HttpServlet {
             int totalPacientes = pacienteDAO.contarPacientes();
             request.setAttribute("totalPacientes", totalPacientes);
 
+            // Total de especialidades
+            int totalEspecialidades = especialidadDAO.contarEspecialidades();
+            request.setAttribute("totalEspecialidades", totalEspecialidades);
+
             // Citas programadas hoy
             int citasHoy = citaDAO.contarCitasHoy();
             request.setAttribute("citasHoy", citasHoy);
 
             // ========== ESTADÍSTICAS SECUNDARIAS ==========
             // Citas pendientes de confirmación
-            int citasPendientes = citaDAO.contarCitasPendientesTodas();
+            int citasPendientes = citaDAO.contarCitasPendientes();
             request.setAttribute("citasPendientes", citasPendientes);
 
             // ========== ESTADÍSTICAS DEL MES ==========
@@ -93,7 +101,7 @@ public class DashboardAdminServlet extends HttpServlet {
             List<Cita> citasRecientes = citaDAO.obtenerCitasRecientes(10);
             request.setAttribute("citasRecientes", citasRecientes);
 
-            // ========== ESTADÍSTICAS POR ROL (OPCIONAL) ==========
+            // ========== ESTADÍSTICAS POR ROL ==========
             // Contar usuarios por rol
             int admins = usuarioDAO.contarUsuariosPorRol(1);
             int profesionalesMedicos = usuarioDAO.contarUsuariosPorRol(2);
@@ -103,12 +111,30 @@ public class DashboardAdminServlet extends HttpServlet {
             request.setAttribute("totalProfesionalesMedicos", profesionalesMedicos);
             request.setAttribute("totalProfesionalesNoMedicos", profesionalesNoMedicos);
 
+            // ========== CÁLCULOS ADICIONALES ==========
+            // Tasa de completitud de citas del mes (porcentaje)
+            double tasaCompletitud = 0.0;
+            if (citasMes > 0) {
+                tasaCompletitud = (citasCompletadas * 100.0) / citasMes;
+            }
+            request.setAttribute("tasaCompletitud", Math.round(tasaCompletitud));
+
+            // Tasa de cancelación del mes (porcentaje)
+            double tasaCancelacion = 0.0;
+            if (citasMes > 0) {
+                tasaCancelacion = (citasCanceladas * 100.0) / citasMes;
+            }
+            request.setAttribute("tasaCancelacion", Math.round(tasaCancelacion));
+
             // Forward a la página principal del dashboard
             request.getRequestDispatcher("/admin/dashboard.jsp").forward(request, response);
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al cargar el dashboard: " + e.getMessage());
+            HttpSession sesion = request.getSession();
+            sesion.setAttribute("error", "Error al cargar el dashboard: " + e.getMessage());
+            // ✅ Redirigir a página de error o mostrar dashboard con error
+            request.setAttribute("errorCargaDatos", true);
             request.getRequestDispatcher("/admin/dashboard.jsp").forward(request, response);
         }
     }

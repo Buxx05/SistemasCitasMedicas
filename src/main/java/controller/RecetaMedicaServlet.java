@@ -8,11 +8,13 @@ import model.Usuario;
 import model.RecetaMedica;
 import model.Paciente;
 import model.Cita;
+import util.GeneradorCodigos;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,7 +39,6 @@ public class RecetaMedicaServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // Verificar sesión
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("usuario") == null) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
@@ -46,13 +47,9 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         Usuario usuario = (Usuario) session.getAttribute("usuario");
 
-        // Solo profesionales (rol 2 y 3)
         if (usuario.getIdRol() != 2 && usuario.getIdRol() != 3) {
-            request.setAttribute("error", "Solo los profesionales pueden emitir recetas");
-            request.setAttribute("recetas", new ArrayList<>());
-            request.setAttribute("totalRecetas", 0);
-            request.setAttribute("recetasVigentes", 0);
-            request.getRequestDispatcher("/profesional/recetas.jsp").forward(request, response);
+            session.setAttribute("error", "Esta sección es solo para profesionales médicos");
+            response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
 
@@ -71,9 +68,6 @@ public class RecetaMedicaServlet extends HttpServlet {
             case "editar":
                 mostrarFormularioEditar(request, response, usuario);
                 break;
-            case "buscar":
-                buscarRecetas(request, response, usuario);
-                break;
             default:
                 listarRecetas(request, response, usuario);
         }
@@ -83,7 +77,6 @@ public class RecetaMedicaServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // Verificar sesión
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("usuario") == null) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
@@ -92,10 +85,9 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         Usuario usuario = (Usuario) session.getAttribute("usuario");
 
-        // Solo profesionales (rol 2 y 3)
         if (usuario.getIdRol() != 2 && usuario.getIdRol() != 3) {
-            session.setAttribute("error", "Solo los profesionales pueden emitir recetas");
-            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+            session.setAttribute("error", "Esta sección es solo para profesionales médicos");
+            response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
 
@@ -141,82 +133,40 @@ public class RecetaMedicaServlet extends HttpServlet {
                 recetas = new ArrayList<>();
             }
 
-            int totalRecetas = recetas.size();
-            int recetasVigentes = 0;
-
-            for (RecetaMedica r : recetas) {
-                try {
-                    if (r.getFechaVigencia() != null && !r.getFechaVigencia().isEmpty()) {
-                        LocalDate vigencia = LocalDate.parse(r.getFechaVigencia());
-                        if (!vigencia.isBefore(LocalDate.now())) {
-                            recetasVigentes++;
-                        }
+            // Generar códigos para recetas, pacientes y citas
+            if (!recetas.isEmpty()) {
+                for (RecetaMedica receta : recetas) {
+                    // Código de receta
+                    if (receta.getCodigoReceta() == null || receta.getCodigoReceta().isEmpty()) {
+                        receta.setCodigoReceta(GeneradorCodigos.generarCodigoReceta(receta.getIdReceta()));
                     }
-                } catch (Exception e) {
-                    // Ignorar fechas inválidas
+                    // Código de paciente
+                    if (receta.getCodigoPaciente() == null || receta.getCodigoPaciente().isEmpty()) {
+                        receta.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(receta.getIdPaciente()));
+                    }
+                    // Código de cita
+                    if (receta.getCodigoCita() == null || receta.getCodigoCita().isEmpty()) {
+                        receta.setCodigoCita(GeneradorCodigos.generarCodigoCita(receta.getIdCita()));
+                    }
                 }
             }
+
+            int totalRecetas = recetas.size();
+            int recetasVigentes = contarRecetasVigentes(recetas);
 
             request.setAttribute("recetas", recetas);
             request.setAttribute("totalRecetas", totalRecetas);
             request.setAttribute("recetasVigentes", recetasVigentes);
-            request.getRequestDispatcher("/profesional/recetas.jsp").forward(request, response);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            request.setAttribute("error", "Error al cargar las recetas: " + e.getMessage());
-            request.setAttribute("recetas", new ArrayList<>());
-            request.setAttribute("totalRecetas", 0);
-            request.setAttribute("recetasVigentes", 0);
-            request.getRequestDispatcher("/profesional/recetas.jsp").forward(request, response);
-        }
-    }
-
-    // ========== BUSCAR RECETAS ==========
-    private void buscarRecetas(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
-            throws ServletException, IOException {
-
-        try {
-            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            String busqueda = request.getParameter("busqueda");
-
-            List<RecetaMedica> recetas = recetaDAO.listarRecetasPorProfesional(idProfesional);
-
-            if (busqueda != null && !busqueda.trim().isEmpty()) {
-                final String busquedaLower = busqueda.toLowerCase();
-                recetas = recetas.stream()
-                        .filter(r -> r.getNombrePaciente().toLowerCase().contains(busquedaLower)
-                        || r.getDniPaciente().contains(busqueda))
-                        .collect(Collectors.toList());
-            }
-
-            int totalRecetas = recetas.size();
-            int recetasVigentes = 0;
-
-            for (RecetaMedica r : recetas) {
-                try {
-                    if (r.getFechaVigencia() != null && !r.getFechaVigencia().isEmpty()) {
-                        LocalDate vigencia = LocalDate.parse(r.getFechaVigencia());
-                        if (!vigencia.isBefore(LocalDate.now())) {
-                            recetasVigentes++;
-                        }
-                    }
-                } catch (Exception e) {
-                    // Ignorar
-                }
-            }
-
-            request.setAttribute("recetas", recetas);
-            request.setAttribute("totalRecetas", totalRecetas);
-            request.setAttribute("recetasVigentes", recetasVigentes);
-            request.setAttribute("busqueda", busqueda);
             request.getRequestDispatcher("/profesional/recetas.jsp").forward(request, response);
 
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al buscar recetas: " + e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+            session.setAttribute("error", "Error al cargar las recetas: " + e.getMessage());
+            request.setAttribute("recetas", new ArrayList<>());
+            request.setAttribute("totalRecetas", 0);
+            request.setAttribute("recetasVigentes", 0);
+            request.getRequestDispatcher("/profesional/recetas.jsp").forward(request, response);
         }
     }
 
@@ -226,7 +176,16 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            int idReceta = Integer.parseInt(request.getParameter("id"));
+
+            String idParam = request.getParameter("id");
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de receta no especificado");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+                return;
+            }
+
+            int idReceta = Integer.parseInt(idParam);
 
             RecetaMedica receta = recetaDAO.buscarRecetaPorId(idReceta);
 
@@ -237,12 +196,37 @@ public class RecetaMedicaServlet extends HttpServlet {
                 return;
             }
 
+            // Generar códigos
+            if (receta.getCodigoReceta() == null || receta.getCodigoReceta().isEmpty()) {
+                receta.setCodigoReceta(GeneradorCodigos.generarCodigoReceta(receta.getIdReceta()));
+            }
+            if (receta.getCodigoPaciente() == null || receta.getCodigoPaciente().isEmpty()) {
+                receta.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(receta.getIdPaciente()));
+            }
+            if (receta.getCodigoCita() == null || receta.getCodigoCita().isEmpty()) {
+                receta.setCodigoCita(GeneradorCodigos.generarCodigoCita(receta.getIdCita()));
+            }
+
+            // Obtener datos del paciente con edad
+            Paciente paciente = pacienteDAO.buscarPacientePorId(receta.getIdPaciente());
+            if (paciente != null) {
+                if (paciente.getCodigoPaciente() == null || paciente.getCodigoPaciente().isEmpty()) {
+                    paciente.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente()));
+                }
+                paciente.setEdad(calcularEdad(paciente.getFechaNacimiento()));
+                request.setAttribute("paciente", paciente);
+            }
+
+            // Calcular si está vigente
             boolean vigente = false;
             try {
-                LocalDate fechaVigencia = LocalDate.parse(receta.getFechaVigencia());
-                vigente = fechaVigencia.isAfter(LocalDate.now()) || fechaVigencia.isEqual(LocalDate.now());
+                String fechaVig = receta.getFechaVigencia();
+                if (fechaVig != null && !fechaVig.trim().isEmpty()) {
+                    LocalDate fechaVigencia = LocalDate.parse(fechaVig);
+                    vigente = !fechaVigencia.isBefore(LocalDate.now());
+                }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("Error al parsear fecha de vigencia: " + e.getMessage());
             }
 
             request.setAttribute("receta", receta);
@@ -268,30 +252,79 @@ public class RecetaMedicaServlet extends HttpServlet {
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
             String idPacienteStr = request.getParameter("idPaciente");
             String idCitaStr = request.getParameter("idCita");
 
+            // Listar pacientes del profesional
             List<Paciente> pacientes = pacienteDAO.listarPacientesPorProfesional(idProfesional);
 
-            if (idCitaStr != null && !idCitaStr.trim().isEmpty()) {
-                int idCita = Integer.parseInt(idCitaStr);
-                Cita cita = citaDAO.buscarCitaPorIdConDetalles(idCita);
-                if (cita != null && cita.getIdProfesional() == idProfesional) {
-                    request.setAttribute("citaSeleccionada", cita);
+            // Generar códigos y edad para pacientes
+            if (pacientes != null && !pacientes.isEmpty()) {
+                for (Paciente p : pacientes) {
+                    if (p.getCodigoPaciente() == null || p.getCodigoPaciente().isEmpty()) {
+                        p.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(p.getIdPaciente()));
+                    }
+                    p.setEdad(calcularEdad(p.getFechaNacimiento()));
                 }
             }
 
+            // Si viene de una cita específica
+            if (idCitaStr != null && !idCitaStr.trim().isEmpty()) {
+                try {
+                    int idCita = Integer.parseInt(idCitaStr);
+                    Cita cita = citaDAO.buscarCitaPorIdConDetalles(idCita);
+
+                    if (cita != null && cita.getIdProfesional() == idProfesional) {
+                        if (cita.getCodigoCita() == null || cita.getCodigoCita().isEmpty()) {
+                            cita.setCodigoCita(GeneradorCodigos.generarCodigoCita(cita.getIdCita()));
+                        }
+                        request.setAttribute("citaSeleccionada", cita);
+                    }
+                } catch (NumberFormatException e) {
+                    System.err.println("ID de cita inválido: " + idCitaStr);
+                }
+            }
+
+            // Si viene de un paciente específico
             if (idPacienteStr != null && !idPacienteStr.trim().isEmpty()) {
-                int idPaciente = Integer.parseInt(idPacienteStr);
-                Paciente pacienteSeleccionado = pacienteDAO.buscarPacientePorId(idPaciente);
+                try {
+                    int idPaciente = Integer.parseInt(idPacienteStr);
+                    Paciente pacienteSeleccionado = pacienteDAO.buscarPacientePorId(idPaciente);
 
-                List<Cita> citasPaciente = citaDAO.listarCitasPorPacienteConDetalles(idPaciente)
-                        .stream()
-                        .filter(c -> c.getIdProfesional() == idProfesional && "COMPLETADA".equals(c.getEstado()))
-                        .collect(Collectors.toList());
+                    if (pacienteSeleccionado != null) {
+                        if (pacienteSeleccionado.getCodigoPaciente() == null || pacienteSeleccionado.getCodigoPaciente().isEmpty()) {
+                            pacienteSeleccionado.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(pacienteSeleccionado.getIdPaciente()));
+                        }
+                        pacienteSeleccionado.setEdad(calcularEdad(pacienteSeleccionado.getFechaNacimiento()));
 
-                request.setAttribute("pacienteSeleccionado", pacienteSeleccionado);
-                request.setAttribute("citasPaciente", citasPaciente);
+                        // Listar citas completadas del paciente con este profesional
+                        List<Cita> citasPaciente = citaDAO.listarCitasPorPacienteConDetalles(idPaciente)
+                                .stream()
+                                .filter(c -> c.getIdProfesional() == idProfesional && "COMPLETADA".equals(c.getEstado()))
+                                .collect(Collectors.toList());
+
+                        // Generar códigos para citas
+                        if (citasPaciente != null && !citasPaciente.isEmpty()) {
+                            for (Cita c : citasPaciente) {
+                                if (c.getCodigoCita() == null || c.getCodigoCita().isEmpty()) {
+                                    c.setCodigoCita(GeneradorCodigos.generarCodigoCita(c.getIdCita()));
+                                }
+                            }
+                        }
+
+                        request.setAttribute("pacienteSeleccionado", pacienteSeleccionado);
+                        request.setAttribute("citasPaciente", citasPaciente);
+                    }
+                } catch (NumberFormatException e) {
+                    System.err.println("ID de paciente inválido: " + idPacienteStr);
+                }
             }
 
             request.setAttribute("pacientes", pacientes);
@@ -312,11 +345,50 @@ public class RecetaMedicaServlet extends HttpServlet {
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
-            int idCita = Integer.parseInt(request.getParameter("idCita"));
-            int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            String idCitaParam = request.getParameter("idCita");
+            String idPacienteParam = request.getParameter("idPaciente");
             String medicamentos = request.getParameter("medicamentos");
             String dosis = request.getParameter("dosis");
             String frecuencia = request.getParameter("frecuencia");
+
+            if (idCitaParam == null || idCitaParam.trim().isEmpty()
+                    || idPacienteParam == null || idPacienteParam.trim().isEmpty()
+                    || medicamentos == null || medicamentos.trim().isEmpty()
+                    || dosis == null || dosis.trim().isEmpty()
+                    || frecuencia == null || frecuencia.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=nueva");
+                return;
+            }
+
+            int idCita = Integer.parseInt(idCitaParam);
+            int idPaciente = Integer.parseInt(idPacienteParam);
+
+            Cita cita = citaDAO.buscarCitaPorIdConDetalles(idCita);
+
+            if (cita == null || cita.getIdProfesional() != idProfesional) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No tienes permiso para crear receta en esta cita");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=nueva");
+                return;
+            }
+
+            if (cita.getIdPaciente() != idPaciente) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "La cita no pertenece al paciente seleccionado");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=nueva");
+                return;
+            }
+
             String duracion = request.getParameter("duracion");
             String indicaciones = request.getParameter("indicaciones");
             String observaciones = request.getParameter("observaciones");
@@ -327,25 +399,28 @@ public class RecetaMedicaServlet extends HttpServlet {
             receta.setIdProfesional(idProfesional);
             receta.setIdPaciente(idPaciente);
             receta.setFechaEmision(LocalDate.now().toString());
-            receta.setMedicamentos(medicamentos);
-            receta.setDosis(dosis);
-            receta.setFrecuencia(frecuencia);
-            receta.setDuracion(duracion);
-            receta.setIndicaciones(indicaciones);
-            receta.setObservaciones(observaciones);
+            receta.setMedicamentos(medicamentos.trim());
+            receta.setDosis(dosis.trim());
+            receta.setFrecuencia(frecuencia.trim());
+            receta.setDuracion(duracion != null ? duracion.trim() : null);
+            receta.setIndicaciones(indicaciones != null ? indicaciones.trim() : null);
+            receta.setObservaciones(observaciones != null ? observaciones.trim() : null);
             receta.setFechaVigencia(fechaVigencia);
 
             HttpSession session = request.getSession();
 
             if (recetaDAO.insertarReceta(receta)) {
-                session.setAttribute("mensaje", "Receta médica emitida exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Receta médica emitida exitosamente");
                 response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=ver&id=" + receta.getIdReceta());
             } else {
                 session.setAttribute("error", "Error al emitir la receta");
                 response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=nueva");
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=nueva");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -360,7 +435,16 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            int idReceta = Integer.parseInt(request.getParameter("id"));
+
+            String idParam = request.getParameter("id");
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de receta no especificado");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+                return;
+            }
+
+            int idReceta = Integer.parseInt(idParam);
 
             RecetaMedica receta = recetaDAO.buscarRecetaPorId(idReceta);
 
@@ -371,9 +455,28 @@ public class RecetaMedicaServlet extends HttpServlet {
                 return;
             }
 
+            // Generar códigos
+            if (receta.getCodigoReceta() == null || receta.getCodigoReceta().isEmpty()) {
+                receta.setCodigoReceta(GeneradorCodigos.generarCodigoReceta(receta.getIdReceta()));
+            }
+
+            // Obtener paciente con edad
+            Paciente paciente = pacienteDAO.buscarPacientePorId(receta.getIdPaciente());
+            if (paciente != null) {
+                if (paciente.getCodigoPaciente() == null || paciente.getCodigoPaciente().isEmpty()) {
+                    paciente.setCodigoPaciente(GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente()));
+                }
+                paciente.setEdad(calcularEdad(paciente.getFechaNacimiento()));
+                request.setAttribute("paciente", paciente);
+            }
+
             request.setAttribute("receta", receta);
             request.getRequestDispatcher("/profesional/receta-form.jsp").forward(request, response);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de receta inválido");
+            response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -388,7 +491,16 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            int idReceta = Integer.parseInt(request.getParameter("idReceta"));
+
+            String idRecetaParam = request.getParameter("idReceta");
+            if (idRecetaParam == null || idRecetaParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de receta no especificado");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+                return;
+            }
+
+            int idReceta = Integer.parseInt(idRecetaParam);
 
             RecetaMedica receta = recetaDAO.buscarRecetaPorId(idReceta);
 
@@ -399,25 +511,48 @@ public class RecetaMedicaServlet extends HttpServlet {
                 return;
             }
 
-            receta.setMedicamentos(request.getParameter("medicamentos"));
-            receta.setDosis(request.getParameter("dosis"));
-            receta.setFrecuencia(request.getParameter("frecuencia"));
-            receta.setDuracion(request.getParameter("duracion"));
-            receta.setIndicaciones(request.getParameter("indicaciones"));
-            receta.setObservaciones(request.getParameter("observaciones"));
-            receta.setFechaVigencia(request.getParameter("fechaVigencia"));
+            String medicamentos = request.getParameter("medicamentos");
+            String dosis = request.getParameter("dosis");
+            String frecuencia = request.getParameter("frecuencia");
+
+            if (medicamentos == null || medicamentos.trim().isEmpty()
+                    || dosis == null || dosis.trim().isEmpty()
+                    || frecuencia == null || frecuencia.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=editar&id=" + idReceta);
+                return;
+            }
+
+            receta.setMedicamentos(medicamentos.trim());
+            receta.setDosis(dosis.trim());
+            receta.setFrecuencia(frecuencia.trim());
+
+            String duracion = request.getParameter("duracion");
+            String indicaciones = request.getParameter("indicaciones");
+            String observaciones = request.getParameter("observaciones");
+            String fechaVigencia = request.getParameter("fechaVigencia");
+
+            receta.setDuracion(duracion != null ? duracion.trim() : null);
+            receta.setIndicaciones(indicaciones != null ? indicaciones.trim() : null);
+            receta.setObservaciones(observaciones != null ? observaciones.trim() : null);
+            receta.setFechaVigencia(fechaVigencia);
 
             HttpSession session = request.getSession();
 
             if (recetaDAO.actualizarReceta(receta)) {
-                session.setAttribute("mensaje", "Receta actualizada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Receta actualizada exitosamente");
             } else {
                 session.setAttribute("error", "Error al actualizar la receta");
             }
 
             response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet?accion=ver&id=" + idReceta);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -432,7 +567,16 @@ public class RecetaMedicaServlet extends HttpServlet {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            int idReceta = Integer.parseInt(request.getParameter("id"));
+
+            String idParam = request.getParameter("id");
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de receta no especificado");
+                response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+                return;
+            }
+
+            int idReceta = Integer.parseInt(idParam);
 
             RecetaMedica receta = recetaDAO.buscarRecetaPorId(idReceta);
 
@@ -446,19 +590,62 @@ public class RecetaMedicaServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (recetaDAO.eliminarReceta(idReceta)) {
-                session.setAttribute("mensaje", "Receta eliminada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Receta eliminada exitosamente");
             } else {
                 session.setAttribute("error", "Error al eliminar la receta");
             }
 
             response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de receta inválido");
+            response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
             session.setAttribute("error", "Error al eliminar la receta: " + e.getMessage());
             response.sendRedirect(request.getContextPath() + "/RecetaMedicaServlet");
+        }
+    }
+
+    // ========== MÉTODOS AUXILIARES ==========
+    /**
+     * Cuenta recetas vigentes de una lista
+     */
+    private int contarRecetasVigentes(List<RecetaMedica> recetas) {
+        int vigentes = 0;
+
+        for (RecetaMedica r : recetas) {
+            try {
+                String fechaVig = r.getFechaVigencia();
+                if (fechaVig != null && !fechaVig.trim().isEmpty()) {
+                    LocalDate vigencia = LocalDate.parse(fechaVig);
+                    if (!vigencia.isBefore(LocalDate.now())) {
+                        vigentes++;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Fecha de vigencia inválida para receta " + r.getIdReceta());
+            }
+        }
+
+        return vigentes;
+    }
+
+    /**
+     * Calcula la edad a partir de una fecha de nacimiento
+     */
+    private int calcularEdad(String fechaNacimiento) {
+        if (fechaNacimiento == null || fechaNacimiento.isEmpty()) {
+            return 0;
+        }
+        try {
+            LocalDate fechaNac = LocalDate.parse(fechaNacimiento);
+            LocalDate fechaActual = LocalDate.now();
+            return Period.between(fechaNac, fechaActual).getYears();
+        } catch (Exception e) {
+            return 0;
         }
     }
 }

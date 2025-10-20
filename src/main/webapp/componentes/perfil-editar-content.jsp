@@ -122,6 +122,7 @@
                                        id="nombreCompleto" 
                                        name="nombreCompleto" 
                                        value="${usuarioPerfil.nombreCompleto}"
+                                       minlength="3"
                                        required/>
                             </div>
 
@@ -168,6 +169,8 @@
                                        id="telefono" 
                                        name="telefono" 
                                        value="${usuarioPerfil.telefono}"
+                                       pattern="[0-9]{7,15}"
+                                       title="Ingresa entre 7 y 15 dígitos"
                                        required/>
                             </div>
 
@@ -175,14 +178,14 @@
                             <div class="form-group">
                                 <label for="direccion">
                                     <i class="fas fa-map-marker-alt mr-1"></i>
-                                    Dirección <span class="text-danger">*</span>
+                                    Dirección
                                 </label>
                                 <input type="text" 
                                        class="form-control" 
                                        id="direccion" 
                                        name="direccion" 
                                        value="${usuarioPerfil.direccion}"
-                                       required/>
+                                       placeholder="Ej: Av. Principal 123, Lima"/>
                             </div>
 
                             <!-- Biografía Personal -->
@@ -224,8 +227,8 @@
                                            id="aniosExperiencia" 
                                            name="aniosExperiencia" 
                                            min="0"
-                                           max="50"
-                                           value="${not empty profesional ? profesional.aniosExperiencia : 0}"/>
+                                           max="60"
+                                           value="${not empty profesional && profesional.aniosExperiencia != null ? profesional.aniosExperiencia : 0}"/>
                                 </div>
 
                                 <!-- Biografía Profesional -->
@@ -271,36 +274,65 @@
 
 <!-- Scripts -->
 <script>
-    (function () {
-        if (typeof jQuery === 'undefined')
+    $(document).ready(function () {
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery no está cargado');
             return;
+        }
 
-        $(document).ready(function () {
-            // Actualizar label del input file
-            $('#fotoPerfil').on('change', function () {
-                var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').html(fileName);
-            });
-
-            // Validar formulario
-            $('#formEditarPerfil').on('submit', function (e) {
-                var nombre = $('#nombreCompleto').val().trim();
-                var telefono = $('#telefono').val().trim();
-
-                if (nombre.length < 3) {
-                    e.preventDefault();
-                    alert('⚠️ El nombre debe tener al menos 3 caracteres');
-                    $('#nombreCompleto').focus();
-                    return false;
-                }
-
-                if (telefono.length < 7) {
-                    e.preventDefault();
-                    alert('⚠️ Ingresa un teléfono válido');
-                    $('#telefono').focus();
-                    return false;
-                }
-            });
+        // ✅ Actualizar label del input file
+        $('#fotoPerfil').on('change', function () {
+            var fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').html(fileName || 'Seleccionar imagen...');
         });
-    })();
+
+        // ✅ Validar formulario de foto
+        $('#formFotoPerfil').on('submit', function (e) {
+            var fileInput = $('#fotoPerfil')[0];
+
+            if (fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('⚠️ Selecciona una imagen para subir.');
+                return false;
+            }
+
+            var file = fileInput.files[0];
+            var maxSize = 10 * 1024 * 1024; // 10 MB
+
+            // Validar tamaño
+            if (file.size > maxSize) {
+                e.preventDefault();
+                alert('⚠️ La imagen es demasiado grande. Máximo 10 MB.');
+                return false;
+            }
+
+            // Validar tipo
+            var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                e.preventDefault();
+                alert('⚠️ Solo se permiten imágenes JPG, PNG o GIF.');
+                return false;
+            }
+        });
+
+        // ✅ Validar formulario de perfil
+        $('#formEditarPerfil').on('submit', function (e) {
+            var nombre = $('#nombreCompleto').val().trim();
+            var telefono = $('#telefono').val().trim();
+
+            if (nombre.length < 3) {
+                e.preventDefault();
+                alert('⚠️ El nombre debe tener al menos 3 caracteres');
+                $('#nombreCompleto').focus();
+                return false;
+            }
+
+            if (telefono.length < 7 || !/^\d+$/.test(telefono)) {
+                e.preventDefault();
+                alert('⚠️ Ingresa un teléfono válido (solo números, mínimo 7 dígitos)');
+                $('#telefono').focus();
+                return false;
+            }
+        });
+    });
 </script>

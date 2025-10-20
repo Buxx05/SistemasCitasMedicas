@@ -1,5 +1,7 @@
 package model;
 
+import util.GeneradorCodigos;
+
 public class Usuario {
 
     private int idUsuario;
@@ -22,6 +24,8 @@ public class Usuario {
     private int aniosExperiencia;
     // Atributo adicional para la vista
     private String nombreRol;
+
+    private String codigoUsuario;
 
     // Constructor vacío
     public Usuario() {
@@ -155,5 +159,16 @@ public class Usuario {
 
     public void setAniosExperiencia(int aniosExperiencia) {
         this.aniosExperiencia = aniosExperiencia;
+    }
+
+    public String getCodigoUsuario() {
+        if (codigoUsuario == null && idUsuario > 0 && idRol > 0) {
+            codigoUsuario = GeneradorCodigos.generarCodigoUsuario(idRol, idUsuario);
+        }
+        return codigoUsuario;
+    }
+
+    public void setCodigoUsuario(String codigoUsuario) {
+        this.codigoUsuario = codigoUsuario;
     }
 }

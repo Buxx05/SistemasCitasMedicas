@@ -5,8 +5,8 @@ import dao.ProfesionalDAO;
 import dao.PacienteDAO;
 import model.Usuario;
 import model.Cita;
-import model.Profesional;
 import model.Paciente;
+import util.GeneradorCodigos;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
@@ -42,6 +42,7 @@ public class CitaProfesionalServlet extends HttpServlet {
 
         // Solo profesionales (rol 2 y 3)
         if (usuario.getIdRol() != 2 && usuario.getIdRol() != 3) {
+            session.setAttribute("error", "Esta sección es solo para profesionales médicos");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -97,25 +98,33 @@ public class CitaProfesionalServlet extends HttpServlet {
     }
 
     // ========== LISTAR CITAS ==========
-    /**
-     * Lista todas las citas del profesional
-     */
     private void listarCitas(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
-            // Filtrar por estado si se proporciona
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
             String estado = request.getParameter("estado");
             List<Cita> citas;
 
-            if (estado != null && !estado.isEmpty()) {
-                citas = citaDAO.listarCitasPorProfesionalConDetalles(idProfesional).stream()
-                        .filter(c -> c.getEstado().equals(estado))
-                        .collect(java.util.stream.Collectors.toList());
+            if (estado != null && !estado.trim().isEmpty()) {
+                citas = citaDAO.listarCitasPorProfesionalYEstado(idProfesional, estado);
             } else {
                 citas = citaDAO.listarCitasPorProfesionalConDetalles(idProfesional);
+            }
+
+            // Generar códigos para cada cita
+            for (Cita cita : citas) {
+                if (cita.getCodigoCita() == null || cita.getCodigoCita().isEmpty()) {
+                    cita.setCodigoCita(GeneradorCodigos.generarCodigoCita(cita.getIdCita()));
+                }
             }
 
             request.setAttribute("citas", citas);
@@ -131,9 +140,6 @@ public class CitaProfesionalServlet extends HttpServlet {
     }
 
     // ========== AGENDA DEL DÍA ==========
-    /**
-     * Muestra las citas del día actual
-     */
     private void mostrarAgendaHoy(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
@@ -142,6 +148,13 @@ public class CitaProfesionalServlet extends HttpServlet {
             String hoy = java.time.LocalDate.now().toString();
 
             List<Cita> citasHoy = citaDAO.listarCitasDelDia(idProfesional, hoy);
+
+            // Generar códigos
+            for (Cita cita : citasHoy) {
+                if (cita.getCodigoCita() == null || cita.getCodigoCita().isEmpty()) {
+                    cita.setCodigoCita(GeneradorCodigos.generarCodigoCita(cita.getIdCita()));
+                }
+            }
 
             request.setAttribute("citasHoy", citasHoy);
             request.setAttribute("fecha", hoy);
@@ -156,38 +169,62 @@ public class CitaProfesionalServlet extends HttpServlet {
     }
 
     // ========== COMPLETAR CITA ==========
-    /**
-     * Marca una cita como completada
-     */
     private void completarCita(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
         try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+            String origen = request.getParameter("origen");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de cita no especificado");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            int idCita = Integer.parseInt(idParam);
+            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
+
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
 
             // Verificar que la cita pertenece al profesional
             Cita cita = citaDAO.buscarCitaPorId(idCita);
-            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
             if (cita == null || cita.getIdProfesional() != idProfesional) {
                 HttpSession session = request.getSession();
                 session.setAttribute("error", "No tienes permiso para modificar esta cita");
-                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                redirigirSegunOrigen(request, response, origen);
+                return;
+            }
+
+            // Validar estado: Solo PENDIENTE puede completarse
+            if (!"PENDIENTE".equals(cita.getEstado())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "Solo se pueden completar citas con estado PENDIENTE. Estado actual: " + cita.getEstado());
+                redirigirSegunOrigen(request, response, origen);
                 return;
             }
 
             HttpSession session = request.getSession();
 
             if (citaDAO.completarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita marcada como completada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Cita marcada como completada exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo completar la cita");
             }
 
-            // Redirigir al dashboard
-            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+            redirigirSegunOrigen(request, response, origen);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de cita inválido");
+            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -197,38 +234,63 @@ public class CitaProfesionalServlet extends HttpServlet {
     }
 
     // ========== CANCELAR CITA ==========
-    /**
-     * Cancela una cita
-     */
     private void cancelarCita(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
         try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+            String origen = request.getParameter("origen");
+            String motivo = request.getParameter("motivo");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de cita no especificado");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            int idCita = Integer.parseInt(idParam);
+            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
             // Verificar que la cita pertenece al profesional
             Cita cita = citaDAO.buscarCitaPorId(idCita);
-            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
             if (cita == null || cita.getIdProfesional() != idProfesional) {
                 HttpSession session = request.getSession();
                 session.setAttribute("error", "No tienes permiso para modificar esta cita");
-                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                redirigirSegunOrigen(request, response, origen);
+                return;
+            }
+
+            // Validar estado: Solo PENDIENTE puede cancelarse
+            if (!"PENDIENTE".equals(cita.getEstado())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "Solo se pueden cancelar citas con estado PENDIENTE. Estado actual: " + cita.getEstado());
+                redirigirSegunOrigen(request, response, origen);
                 return;
             }
 
             HttpSession session = request.getSession();
 
+            // Agregar motivo a observaciones si existe
+            if (motivo != null && !motivo.trim().isEmpty()) {
+                String observacionesCancelacion = (cita.getObservaciones() != null ? cita.getObservaciones() + " | " : "")
+                        + "Motivo de cancelación: " + motivo;
+                citaDAO.actualizarObservaciones(idCita, observacionesCancelacion);
+            }
+
             if (citaDAO.cancelarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita cancelada exitosamente");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "Cita cancelada exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo cancelar la cita");
             }
 
-            // Redirigir al dashboard
-            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+            redirigirSegunOrigen(request, response, origen);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de cita inválido");
+            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -238,19 +300,34 @@ public class CitaProfesionalServlet extends HttpServlet {
     }
 
     // ========== RE-CITAS (SEGUIMIENTO) ==========
-    /**
-     * Muestra el formulario para crear una re-cita (cita de seguimiento)
-     */
     private void mostrarFormularioRecita(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
         try {
-            int idCitaOriginal = Integer.parseInt(request.getParameter("idCita"));
-            int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
+            String idCitaParam = request.getParameter("idCita");
+            String idPacienteParam = request.getParameter("idPaciente");
+
+            if (idCitaParam == null || idCitaParam.trim().isEmpty()
+                    || idPacienteParam == null || idPacienteParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Parámetros faltantes para crear la re-cita");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            int idCitaOriginal = Integer.parseInt(idCitaParam);
+            int idPaciente = Integer.parseInt(idPacienteParam);
+            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
+
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
 
             // Verificar que la cita pertenece al profesional
             Cita citaOriginal = citaDAO.buscarCitaPorId(idCitaOriginal);
-            int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
 
             if (citaOriginal == null || citaOriginal.getIdProfesional() != idProfesional) {
                 HttpSession session = request.getSession();
@@ -259,72 +336,142 @@ public class CitaProfesionalServlet extends HttpServlet {
                 return;
             }
 
+            // Validar estado: Solo COMPLETADA puede re-citarse
+            if (!"COMPLETADA".equals(citaOriginal.getEstado())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "Solo se pueden crear re-citas de citas completadas. Estado actual: " + citaOriginal.getEstado());
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            // Generar código para la cita original
+            if (citaOriginal.getCodigoCita() == null || citaOriginal.getCodigoCita().isEmpty()) {
+                citaOriginal.setCodigoCita(GeneradorCodigos.generarCodigoCita(citaOriginal.getIdCita()));
+            }
+
             // Obtener datos del paciente
             Paciente paciente = pacienteDAO.buscarPacientePorId(idPaciente);
+
+            if (paciente == null) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del paciente");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
 
             request.setAttribute("citaOriginal", citaOriginal);
             request.setAttribute("paciente", paciente);
             request.setAttribute("idProfesional", idProfesional);
             request.getRequestDispatcher("/profesional/recita-form.jsp").forward(request, response);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID inválido en los parámetros");
+            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al cargar el formulario: " + e.getMessage());
+            session.setAttribute("error", "Error al cargar el formulario de re-cita: " + e.getMessage());
             response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
         }
     }
 
-    /**
-     * Crea una nueva cita de seguimiento (re-cita)
-     */
+    // ========== CREAR RE-CITA ==========
     private void crearRecita(HttpServletRequest request, HttpServletResponse response, Usuario usuario)
             throws ServletException, IOException {
 
         try {
             int idProfesional = profesionalDAO.obtenerIdProfesionalPorIdUsuario(usuario.getIdUsuario());
-            int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
-            int idCitaOriginal = Integer.parseInt(request.getParameter("idCitaOriginal"));
+
+            if (idProfesional == 0) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "No se encontró información del profesional");
+                response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                return;
+            }
+
+            String idPacienteParam = request.getParameter("idPaciente");
+            String idCitaOriginalParam = request.getParameter("idCitaOriginal");
             String fechaCita = request.getParameter("fechaCita");
             String horaCita = request.getParameter("horaCita");
             String motivoConsulta = request.getParameter("motivoConsulta");
             String observaciones = request.getParameter("observaciones");
+            String origen = request.getParameter("origen");
+
+            // ✅ Validación mejorada
+            if (idPacienteParam == null || idPacienteParam.trim().isEmpty()
+                    || idCitaOriginalParam == null || idCitaOriginalParam.trim().isEmpty()
+                    || fechaCita == null || fechaCita.trim().isEmpty()
+                    || horaCita == null || horaCita.trim().isEmpty()
+                    || motivoConsulta == null || motivoConsulta.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Todos los campos obligatorios deben ser completados");
+                response.sendRedirect(request.getContextPath() + "/CitaProfesionalServlet");
+                return;
+            }
+
+            int idPaciente = Integer.parseInt(idPacienteParam);
+            int idCitaOriginal = Integer.parseInt(idCitaOriginalParam);
 
             // Validar que no exista una cita en ese horario
             if (citaDAO.existeCitaEnHorario(idProfesional, fechaCita, horaCita)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "Ya tienes una cita agendada en ese horario");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "Ya tienes una cita agendada en ese horario. Por favor, selecciona otra hora.");
                 response.sendRedirect(request.getContextPath() + "/CitaProfesionalServlet?accion=nuevaRecita&idCita=" + idCitaOriginal + "&idPaciente=" + idPaciente);
                 return;
             }
 
-            // Crear nueva cita (re-cita)
+            // Crear nueva cita (re-cita) con estado PENDIENTE
             Cita recita = new Cita();
             recita.setIdPaciente(idPaciente);
             recita.setIdProfesional(idProfesional);
             recita.setFechaCita(fechaCita);
             recita.setHoraCita(horaCita);
             recita.setMotivoConsulta(motivoConsulta);
-            recita.setEstado("CONFIRMADA");
+            recita.setEstado("PENDIENTE");
             recita.setObservaciones(observaciones);
-            recita.setIdRecita(idCitaOriginal); // Referenciar a la cita original
+            recita.setIdRecita(idCitaOriginal);
 
             HttpSession session = request.getSession();
 
             if (citaDAO.insertarCita(recita)) {
-                session.setAttribute("mensaje", "Re-cita creada exitosamente. El paciente será notificado.");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Re-cita de seguimiento creada exitosamente");
             } else {
                 session.setAttribute("error", "Error al crear la re-cita");
             }
 
-            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+            redirigirSegunOrigen(request, response, origen);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/CitaProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
             session.setAttribute("error", "Error al crear la re-cita: " + e.getMessage());
+            response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+        }
+    }
+
+    // ========== MÉTODO AUXILIAR ==========
+    /**
+     * Redirige al usuario según el origen de la acción
+     *
+     * @param request HttpServletRequest
+     * @param response HttpServletResponse
+     * @param origen "citas", "cita" o "dashboard"
+     * @throws IOException
+     */
+    private void redirigirSegunOrigen(HttpServletRequest request, HttpServletResponse response, String origen) throws IOException {
+        // ✅ Acepta variaciones: "citas", "cita", "calendario"
+        if ("citas".equals(origen) || "cita".equals(origen)) {
+            response.sendRedirect(request.getContextPath() + "/CitaProfesionalServlet");
+        } else if ("calendario".equals(origen)) {
+            response.sendRedirect(request.getContextPath() + "/CalendarioServlet");
+        } else {
+            // Por defecto: dashboard
             response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
         }
     }

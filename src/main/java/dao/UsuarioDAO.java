@@ -5,24 +5,33 @@ import util.ConexionDB;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import util.GeneradorCodigos;
 
 public class UsuarioDAO {
 
     public Usuario autenticar(String email, String password) {
         String sql = "SELECT * FROM Usuarios WHERE email = ? AND password = ? AND activo = TRUE";
+
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+
             stmt.setString(1, email);
             stmt.setString(2, password);
             ResultSet rs = stmt.executeQuery();
+
             if (rs.next()) {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombreCompleto(rs.getString("nombre_completo"));
                 usuario.setEmail(rs.getString("email"));
-                usuario.setPassword(rs.getString("password"));
+                // NO guardar password en sesión
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
                 usuario.setActivo(rs.getBoolean("activo"));
+
+                // Agregar foto de perfil si existe
+                String fotoPerfil = rs.getString("foto_perfil");
+                usuario.setFotoPerfil(fotoPerfil);
+
                 return usuario;
             }
         } catch (SQLException e) {
@@ -214,7 +223,14 @@ public class UsuarioDAO {
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
                 usuario.setActivo(rs.getBoolean("activo"));
-                usuario.setNombreRol(rs.getString("nombre_rol")); // Nombre del rol
+                usuario.setNombreRol(rs.getString("nombre_rol"));
+
+                // ⬇️ AGREGAR ESTA LÍNEA
+                usuario.setCodigoUsuario(GeneradorCodigos.generarCodigoUsuario(
+                        usuario.getIdRol(),
+                        usuario.getIdUsuario()
+                ));
+
                 usuarios.add(usuario);
             }
         } catch (SQLException e) {
@@ -276,9 +292,12 @@ public class UsuarioDAO {
     /**
      * Actualiza el perfil del usuario (sin contraseña)
      */
+    /**
+     * Actualiza el perfil del usuario (sin contraseña ni foto)
+     */
     public boolean actualizarPerfil(Usuario usuario) {
         String sql = "UPDATE Usuarios SET nombre_completo = ?, telefono = ?, "
-                + "direccion = ?, biografia = ?, foto_perfil = ? WHERE id_usuario = ?";
+                + "direccion = ?, biografia = ? WHERE id_usuario = ?";
 
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -286,8 +305,7 @@ public class UsuarioDAO {
             stmt.setString(2, usuario.getTelefono());
             stmt.setString(3, usuario.getDireccion());
             stmt.setString(4, usuario.getBiografia());
-            stmt.setString(5, usuario.getFotoPerfil());
-            stmt.setInt(6, usuario.getIdUsuario());
+            stmt.setInt(5, usuario.getIdUsuario());
 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {

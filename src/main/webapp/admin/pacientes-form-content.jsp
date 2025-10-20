@@ -76,7 +76,7 @@
                                                    class="form-control" 
                                                    id="nombreCompleto" 
                                                    name="nombreCompleto" 
-                                                   value="${paciente != null ? paciente.nombreCompleto : param.nombreCompleto}" 
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.nombreCompleto : ''}" 
                                                    placeholder="Ingrese el nombre completo"
                                                    required>
                                         </div>
@@ -99,7 +99,7 @@
                                                    class="form-control" 
                                                    id="dni" 
                                                    name="dni" 
-                                                   value="${paciente != null ? paciente.dni : param.dni}" 
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.dni : ''}" 
                                                    placeholder="Ej: 12345678"
                                                    maxlength="20"
                                                    required>
@@ -128,7 +128,7 @@
                                                    class="form-control" 
                                                    id="fechaNacimiento" 
                                                    name="fechaNacimiento" 
-                                                   value="${paciente != null ? paciente.fechaNacimiento : param.fechaNacimiento}">
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.fechaNacimiento : ''}">
                                         </div>
                                     </div>
                                 </div>
@@ -147,13 +147,13 @@
                                             </div>
                                             <select class="form-control" id="genero" name="genero" required>
                                                 <option value="">Seleccione</option>
-                                                <option value="M" ${(paciente != null && paciente.genero == 'M') || param.genero == 'M' ? 'selected' : ''}>
+                                                <option value="M" ${accion == 'actualizar' && paciente != null && paciente.genero == 'M' ? 'selected' : ''}>
                                                     Masculino
                                                 </option>
-                                                <option value="F" ${(paciente != null && paciente.genero == 'F') || param.genero == 'F' ? 'selected' : ''}>
+                                                <option value="F" ${accion == 'actualizar' && paciente != null && paciente.genero == 'F' ? 'selected' : ''}>
                                                     Femenino
                                                 </option>
-                                                <option value="Otro" ${(paciente != null && paciente.genero == 'Otro') || param.genero == 'Otro' ? 'selected' : ''}>
+                                                <option value="Otro" ${accion == 'actualizar' && paciente != null && paciente.genero == 'Otro' ? 'selected' : ''}>
                                                     Otro
                                                 </option>
                                             </select>
@@ -177,7 +177,7 @@
                                                    class="form-control" 
                                                    id="telefono" 
                                                    name="telefono" 
-                                                   value="${paciente != null ? paciente.telefono : param.telefono}" 
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.telefono : ''}" 
                                                    placeholder="Ej: +51 999 888 777">
                                         </div>
                                     </div>
@@ -209,7 +209,7 @@
                                                    class="form-control" 
                                                    id="email" 
                                                    name="email" 
-                                                   value="${paciente != null ? paciente.email : param.email}" 
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.email : ''}" 
                                                    placeholder="correo@ejemplo.com">
                                         </div>
                                     </div>
@@ -231,7 +231,7 @@
                                                    class="form-control" 
                                                    id="direccion" 
                                                    name="direccion" 
-                                                   value="${paciente != null ? paciente.direccion : param.direccion}" 
+                                                   value="${accion == 'actualizar' && paciente != null ? paciente.direccion : ''}" 
                                                    placeholder="Calle, número, distrito, ciudad">
                                         </div>
                                     </div>

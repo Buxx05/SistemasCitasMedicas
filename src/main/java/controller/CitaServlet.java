@@ -1,11 +1,10 @@
 package controller;
 
-import dao.HorarioProfesionalDAO; // ← Agregar
-import com.google.gson.Gson; // ← Agregar (para JSON)
+import dao.HorarioProfesionalDAO;
+import com.google.gson.Gson;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.DayOfWeek;
-import java.util.Locale;
 import dao.CitaDAO;
 import dao.PacienteDAO;
 import dao.ProfesionalDAO;
@@ -50,6 +49,7 @@ public class CitaServlet extends HttpServlet {
 
         // Solo administradores pueden gestionar citas
         if (usuarioSesion.getIdRol() != 1) {
+            session.setAttribute("error", "Esta sección es solo para administradores");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -72,15 +72,6 @@ public class CitaServlet extends HttpServlet {
                 break;
             case "eliminar":
                 eliminarCita(request, response);
-                break;
-            case "confirmar":
-                confirmarCita(request, response);
-                break;
-            case "cancelar":
-                cancelarCita(request, response);
-                break;
-            case "completar":
-                completarCita(request, response);
                 break;
             case "filtrar":
                 filtrarCitas(request, response);
@@ -122,16 +113,11 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== LISTAR CITAS ==========
-    /**
-     * Lista todas las citas con detalles completos
-     */
     private void listarCitas(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            // ✅ Admin ve TODAS las citas
             List<Cita> citas = citaDAO.listarCitasConDetalles();
-
             request.setAttribute("citas", citas);
             request.getRequestDispatcher("/admin/citas.jsp").forward(request, response);
 
@@ -144,15 +130,10 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== MOSTRAR FORMULARIO NUEVO ==========
-    /**
-     * Muestra el formulario para crear una nueva cita Carga listas de pacientes
-     * y profesionales
-     */
     private void mostrarFormularioNuevo(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            // Cargar listas para los selects
             List<Paciente> pacientes = pacienteDAO.listarPacientes();
             List<Profesional> profesionales = profesionalDAO.listarProfesionalesActivos();
 
@@ -171,25 +152,33 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== CREAR CITA ==========
-    /**
-     * Crea una nueva cita con validaciones
-     */
     private void crearCita(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
-            int idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
+            // ✅ Validación de parámetros obligatorios
+            String idPacienteParam = request.getParameter("idPaciente");
+            String idProfesionalParam = request.getParameter("idProfesional");
             String fechaCita = request.getParameter("fechaCita");
             String horaCita = request.getParameter("horaCita");
             String motivoConsulta = request.getParameter("motivoConsulta");
+
+            if (idPacienteParam == null || idProfesionalParam == null || 
+                fechaCita == null || horaCita == null || motivoConsulta == null) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Todos los campos obligatorios deben ser completados");
+                response.sendRedirect(request.getContextPath() + "/CitaServlet?accion=nuevo");
+                return;
+            }
+
+            int idPaciente = Integer.parseInt(idPacienteParam);
+            int idProfesional = Integer.parseInt(idProfesionalParam);
             String observaciones = request.getParameter("observaciones");
 
             // Validar que no exista una cita en el mismo horario
             if (citaDAO.existeCitaEnHorario(idProfesional, fechaCita, horaCita)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El profesional ya tiene una cita agendada en ese horario");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "El profesional ya tiene una cita agendada en ese horario. Por favor, selecciona otra hora.");
 
                 // Recargar formulario con datos
                 List<Paciente> pacientes = pacienteDAO.listarPacientes();
@@ -215,7 +204,7 @@ public class CitaServlet extends HttpServlet {
             cita.setFechaCita(fechaCita);
             cita.setHoraCita(horaCita);
             cita.setMotivoConsulta(motivoConsulta);
-            cita.setEstado("CONFIRMADA");
+            cita.setEstado("PENDIENTE"); // ✅ Estado por defecto
             cita.setObservaciones(observaciones);
 
             // Manejar id_recita (opcional)
@@ -227,14 +216,17 @@ public class CitaServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (citaDAO.insertarCita(cita)) {
-                session.setAttribute("mensaje", "Cita creada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Cita creada exitosamente");
             } else {
                 session.setAttribute("error", "Error al crear la cita");
             }
 
             response.sendRedirect(request.getContextPath() + "/CitaServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Los datos numéricos ingresados no son válidos");
+            response.sendRedirect(request.getContextPath() + "/CitaServlet?accion=nuevo");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -244,20 +236,23 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== MOSTRAR FORMULARIO EDITAR ==========
-    /**
-     * Muestra el formulario para editar una cita existente
-     */
     private void mostrarFormularioEditar(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+            
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de cita no especificado");
+                response.sendRedirect(request.getContextPath() + "/CitaServlet");
+                return;
+            }
 
-            // Buscar cita con detalles
+            int idCita = Integer.parseInt(idParam);
             Cita cita = citaDAO.buscarCitaPorIdConDetalles(idCita);
 
             if (cita != null) {
-                // Cargar listas para los selects
                 List<Paciente> pacientes = pacienteDAO.listarPacientes();
                 List<Profesional> profesionales = profesionalDAO.listarProfesionalesActivos();
 
@@ -273,6 +268,10 @@ public class CitaServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/CitaServlet");
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de cita inválido");
+            response.sendRedirect(request.getContextPath() + "/CitaServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -282,9 +281,6 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== ACTUALIZAR CITA ==========
-    /**
-     * Actualiza una cita existente con validaciones
-     */
     private void actualizarCita(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -301,8 +297,7 @@ public class CitaServlet extends HttpServlet {
             // Validar horario (excepto esta misma cita)
             if (citaDAO.existeCitaEnHorarioExceptoCita(idProfesional, fechaCita, horaCita, idCita)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El profesional ya tiene otra cita agendada en ese horario");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "El profesional ya tiene otra cita agendada en ese horario. Por favor, selecciona otra hora.");
 
                 // Recargar formulario
                 Cita cita = citaDAO.buscarCitaPorIdConDetalles(idCita);
@@ -345,14 +340,17 @@ public class CitaServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (citaDAO.actualizarCita(cita)) {
-                session.setAttribute("mensaje", "Cita actualizada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Cita actualizada exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar la cita");
             }
 
             response.sendRedirect(request.getContextPath() + "/CitaServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Los datos numéricos ingresados no son válidos");
+            response.sendRedirect(request.getContextPath() + "/CitaServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -362,16 +360,12 @@ public class CitaServlet extends HttpServlet {
     }
 
     // ========== ELIMINAR CITA ==========
-    /**
-     * Elimina una cita del sistema
-     */
     private void eliminarCita(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
             String idParam = request.getParameter("id");
 
-            // ✅ Validar parámetro
             if (idParam == null || idParam.trim().isEmpty()) {
                 HttpSession session = request.getSession();
                 session.setAttribute("error", "ID de cita no especificado");
@@ -380,12 +374,10 @@ public class CitaServlet extends HttpServlet {
             }
 
             int idCita = Integer.parseInt(idParam);
-
             HttpSession session = request.getSession();
 
             if (citaDAO.eliminarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita eliminada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Cita eliminada exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo eliminar la cita");
             }
@@ -404,95 +396,7 @@ public class CitaServlet extends HttpServlet {
         }
     }
 
-    // ========== CAMBIO DE ESTADOS ==========
-    /**
-     * Confirma una cita (PENDIENTE → CONFIRMADA)
-     */
-    private void confirmarCita(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
-
-            HttpSession session = request.getSession();
-
-            if (citaDAO.confirmarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita confirmada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
-            } else {
-                session.setAttribute("error", "No se pudo confirmar la cita");
-            }
-
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al confirmar la cita: " + e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-        }
-    }
-
-    /**
-     * Cancela una cita
-     */
-    private void cancelarCita(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
-
-            HttpSession session = request.getSession();
-
-            if (citaDAO.cancelarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita cancelada exitosamente");
-                session.setAttribute("tipoMensaje", "warning");
-            } else {
-                session.setAttribute("error", "No se pudo cancelar la cita");
-            }
-
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al cancelar la cita: " + e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-        }
-    }
-
-    /**
-     * Completa una cita (marca como atendida)
-     */
-    private void completarCita(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        try {
-            int idCita = Integer.parseInt(request.getParameter("id"));
-
-            HttpSession session = request.getSession();
-
-            if (citaDAO.completarCita(idCita)) {
-                session.setAttribute("mensaje", "Cita completada exitosamente");
-                session.setAttribute("tipoMensaje", "success");
-            } else {
-                session.setAttribute("error", "No se pudo completar la cita");
-            }
-
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al completar la cita: " + e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/CitaServlet");
-        }
-    }
-
     // ========== FILTRAR CITAS ==========
-    /**
-     * Filtra citas según criterios
-     */
     private void filtrarCitas(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -500,54 +404,69 @@ public class CitaServlet extends HttpServlet {
             String tipoFiltro = request.getParameter("tipoFiltro");
             List<Cita> citas = null;
 
-            switch (tipoFiltro) {
-                case "estado":
-                    String estado = request.getParameter("estado");
-                    citas = citaDAO.listarCitasPorEstadoConDetalles(estado);
-                    break;
-                case "fecha":
-                    String fecha = request.getParameter("fecha");
-                    citas = citaDAO.listarCitasPorFechaConDetalles(fecha);
-                    break;
-                case "paciente":
-                    int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
-                    citas = citaDAO.listarCitasPorPacienteConDetalles(idPaciente);
-                    break;
-                case "profesional":
-                    int idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
-                    citas = citaDAO.listarCitasPorProfesionalConDetalles(idProfesional);
-                    break;
-                case "rango":
-                    String fechaInicio = request.getParameter("fechaInicio");
-                    String fechaFin = request.getParameter("fechaFin");
-                    citas = citaDAO.listarCitasPorRangoFechasConDetalles(fechaInicio, fechaFin);
-                    break;
-                default:
-                    citas = citaDAO.listarCitasConDetalles();
+            if (tipoFiltro == null || tipoFiltro.trim().isEmpty()) {
+                citas = citaDAO.listarCitasConDetalles();
+            } else {
+                switch (tipoFiltro) {
+                    case "estado":
+                        String estado = request.getParameter("estado");
+                        citas = citaDAO.listarCitasPorEstadoConDetalles(estado);
+                        break;
+                    case "fecha":
+                        String fecha = request.getParameter("fecha");
+                        citas = citaDAO.listarCitasPorFechaConDetalles(fecha);
+                        break;
+                    case "paciente":
+                        int idPaciente = Integer.parseInt(request.getParameter("idPaciente"));
+                        citas = citaDAO.listarCitasPorPacienteConDetalles(idPaciente);
+                        break;
+                    case "profesional":
+                        int idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
+                        citas = citaDAO.listarCitasPorProfesionalConDetalles(idProfesional);
+                        break;
+                    case "rango":
+                        String fechaInicio = request.getParameter("fechaInicio");
+                        String fechaFin = request.getParameter("fechaFin");
+                        citas = citaDAO.listarCitasPorRangoFechasConDetalles(fechaInicio, fechaFin);
+                        break;
+                    default:
+                        citas = citaDAO.listarCitasConDetalles();
+                }
             }
 
             request.setAttribute("citas", citas);
             request.setAttribute("filtroAplicado", tipoFiltro);
             request.getRequestDispatcher("/admin/citas.jsp").forward(request, response);
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Parámetros de filtro inválidos");
+            listarCitas(request, response);
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al filtrar citas: " + e.getMessage());
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al filtrar citas: " + e.getMessage());
             listarCitas(request, response);
         }
     }
 
     // ========== AJAX: OBTENER HORARIOS DISPONIBLES ==========
-    /**
-     * Obtiene los horarios disponibles de un profesional en una fecha
-     * específica Retorna JSON para ser consumido por AJAX
-     */
     private void obtenerHorariosDisponibles(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
         try {
-            int idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
+            String idProfesionalParam = request.getParameter("idProfesional");
             String fecha = request.getParameter("fecha");
+
+            if (idProfesionalParam == null || fecha == null) {
+                response.getWriter().write("[]");
+                return;
+            }
+
+            int idProfesional = Integer.parseInt(idProfesionalParam);
 
             // Obtener el día de la semana en español
             String diaSemana = obtenerDiaSemana(fecha);
@@ -559,22 +478,18 @@ public class CitaServlet extends HttpServlet {
             Gson gson = new Gson();
             String json = gson.toJson(bloquesDisponibles);
 
-            // Configurar respuesta como JSON
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
             response.getWriter().write(json);
 
+        } catch (NumberFormatException e) {
+            response.getWriter().write("[]");
         } catch (Exception e) {
             e.printStackTrace();
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write("[]"); // Retorna array vacío si hay error
+            response.getWriter().write("[]");
         }
     }
 
     /**
-     * Convierte una fecha (yyyy-MM-dd) al día de la semana en español
-     * mayúsculas Ejemplo: "2025-10-20" → "LUNES"
+     * Obtiene el nombre del día de la semana en español
      */
     private String obtenerDiaSemana(String fecha) {
         try {
@@ -605,5 +520,4 @@ public class CitaServlet extends HttpServlet {
             return "";
         }
     }
-
 }

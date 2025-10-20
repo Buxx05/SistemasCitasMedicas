@@ -27,98 +27,37 @@
         <!-- Alertas -->
         <jsp:include page="/componentes/alert.jsp"/>
 
-        <!-- Card de filtros -->
-        <div class="card card-secondary collapsed-card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="fas fa-filter mr-2"></i> Filtros de Búsqueda
-                </h3>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div class="card-body">
-                <form method="get" action="${pageContext.request.contextPath}/CitaServlet" id="filtroForm">
-                    <input type="hidden" name="accion" value="filtrar">
-
-                    <div class="row">
-                        <!-- Tipo de filtro -->
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Filtrar por:</label>
-                                <select class="form-control" id="tipoFiltro" name="tipoFiltro" required>
-                                    <option value="">Seleccione...</option>
-                                    <option value="estado">Estado</option>
-                                    <option value="fecha">Fecha</option>
-                                    <option value="rango">Rango de Fechas</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Filtro por Estado -->
-                        <div class="col-md-3 filtro-option" id="filtroEstado" style="display:none;">
-                            <div class="form-group">
-                                <label>Estado:</label>
-                                <select class="form-control" name="estado">
-                                    <option value="PENDIENTE">Pendiente</option>
-                                    <option value="CONFIRMADA">Confirmada</option>
-                                    <option value="COMPLETADA">Completada</option>
-                                    <option value="CANCELADA">Cancelada</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Filtro por Fecha -->
-                        <div class="col-md-3 filtro-option" id="filtroFecha" style="display:none;">
-                            <div class="form-group">
-                                <label>Fecha:</label>
-                                <input type="date" class="form-control" name="fecha">
-                            </div>
-                        </div>
-
-                        <!-- Filtro por Rango -->
-                        <div class="col-md-6 filtro-option" id="filtroRango" style="display:none;">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label>Fecha Inicio:</label>
-                                    <input type="date" class="form-control" name="fechaInicio">
-                                </div>
-                                <div class="col-md-6">
-                                    <label>Fecha Fin:</label>
-                                    <input type="date" class="form-control" name="fechaFin">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botón -->
-                        <div class="col-md-3">
-                            <label>&nbsp;</label>
-                            <button type="submit" class="btn btn-primary btn-block">
-                                <i class="fas fa-search"></i> Buscar
-                            </button>
-                        </div>
-                    </div>
-                </form>
-
-                <div class="text-center mt-2">
-                    <a href="${pageContext.request.contextPath}/CitaServlet" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-redo"></i> Limpiar Filtros
-                    </a>
-                </div>
-            </div>
-        </div>
-
         <!-- Tabla de citas -->
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-calendar-alt mr-2"></i> Lista de Citas
                 </h3>
+
                 <div class="card-tools">
-                    <a href="${pageContext.request.contextPath}/CitaServlet?accion=nuevo" class="btn btn-primary btn-sm">
+                    <!-- Filtros rápidos por estado -->
+                    <div class="btn-group mr-2" role="group">
+                        <a href="${pageContext.request.contextPath}/CitaServlet" 
+                           class="btn btn-sm ${empty param.estado ? 'btn-secondary' : 'btn-outline-secondary'}">
+                            <i class="fas fa-list"></i> Todas
+                        </a>
+                        <a href="${pageContext.request.contextPath}/CitaServlet?accion=filtrar&tipoFiltro=estado&estado=PENDIENTE" 
+                           class="btn btn-sm ${param.estado == 'PENDIENTE' ? 'btn-warning' : 'btn-outline-warning'}">
+                            <i class="fas fa-clock"></i> Pendientes
+                        </a>
+                        <a href="${pageContext.request.contextPath}/CitaServlet?accion=filtrar&tipoFiltro=estado&estado=COMPLETADA" 
+                           class="btn btn-sm ${param.estado == 'COMPLETADA' ? 'btn-success' : 'btn-outline-success'}">
+                            <i class="fas fa-check"></i> Completadas
+                        </a>
+                        <a href="${pageContext.request.contextPath}/CitaServlet?accion=filtrar&tipoFiltro=estado&estado=CANCELADA" 
+                           class="btn btn-sm ${param.estado == 'CANCELADA' ? 'btn-danger' : 'btn-outline-danger'}">
+                            <i class="fas fa-times"></i> Canceladas
+                        </a>
+                    </div>
+
+                    <!-- Botón Nueva Cita -->
+                    <a href="${pageContext.request.contextPath}/CitaServlet?accion=nuevo" 
+                       class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Nueva Cita
                     </a>
                 </div>
@@ -129,7 +68,7 @@
                     <table id="citasTable" class="table table-bordered table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Código</th>
                                 <th>Paciente</th>
                                 <th>Profesional</th>
                                 <th>Especialidad</th>
@@ -141,101 +80,108 @@
                             </tr>
                         </thead>
                         <tbody>
-                        <c:choose>
-                            <c:when test="${not empty citas}">
-                                <c:forEach var="cita" items="${citas}">
+                            <c:choose>
+                                <c:when test="${not empty citas}">
+                                    <c:forEach var="cita" items="${citas}">
+                                        <tr>
+                                            <!-- CÓDIGO -->
+                                            <td>
+                                                <strong class="badge badge-light" style="font-size: 0.9rem;">
+                                                    ${cita.codigoCita}
+                                                </strong>
+                                            </td>
+
+                                            <!-- PACIENTE -->
+                                            <td>
+                                                <i class="fas fa-user-injured mr-1"></i>
+                                                <strong>${cita.nombrePaciente}</strong><br>
+                                                <small class="text-muted">DNI: ${cita.dniPaciente}</small>
+                                            </td>
+
+                                            <!-- PROFESIONAL -->
+                                            <td>
+                                                <i class="fas fa-user-md mr-1"></i>${cita.nombreProfesional}
+                                            </td>
+
+                                            <!-- ESPECIALIDAD -->
+                                            <td>
+                                                <span class="badge badge-info">${cita.nombreEspecialidad}</span>
+                                            </td>
+
+                                            <!-- FECHA -->
+                                            <td><i class="far fa-calendar mr-1"></i>${cita.fechaCita}</td>
+
+                                            <!-- HORA -->
+                                            <td><i class="far fa-clock mr-1"></i>${cita.horaCita}</td>
+
+                                            <!-- MOTIVO -->
+                                            <td>
+                                                <c:choose>
+                                                    <c:when test="${not empty cita.motivoConsulta}">
+                                                        <small>${cita.motivoConsulta}</small>
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <span class="text-muted">-</span>
+                                                    </c:otherwise>
+                                                </c:choose>
+                                            </td>
+
+                                            <!-- ESTADO -->
+                                            <td>
+                                                <c:choose>
+                                                    <c:when test="${cita.estado == 'PENDIENTE'}">
+                                                        <span class="badge badge-warning">
+                                                            <i class="fas fa-clock mr-1"></i>Pendiente
+                                                        </span>
+                                                    </c:when>
+                                                    <c:when test="${cita.estado == 'COMPLETADA'}">
+                                                        <span class="badge badge-success">
+                                                            <i class="fas fa-check-double mr-1"></i>Completada
+                                                        </span>
+                                                    </c:when>
+                                                    <c:when test="${cita.estado == 'CANCELADA'}">
+                                                        <span class="badge badge-danger">
+                                                            <i class="fas fa-times mr-1"></i>Cancelada
+                                                        </span>
+                                                    </c:when>
+                                                </c:choose>
+                                            </td>
+
+                                            <!-- ACCIONES -->
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="${pageContext.request.contextPath}/CitaServlet?accion=editar&id=${cita.idCita}" 
+                                                       class="btn btn-warning"
+                                                       title="Editar cita"
+                                                       data-toggle="tooltip">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+
+                                                    <button type="button" 
+                                                            class="btn btn-danger"
+                                                            onclick="eliminarCita(${cita.idCita}, '${cita.nombrePaciente}', '${cita.fechaCita}', '${cita.estado}')"
+                                                            title="Eliminar cita"
+                                                            data-toggle="tooltip">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </c:forEach>
+                                </c:when>
+                                <c:otherwise>
                                     <tr>
-                                        <td>${cita.idCita}</td>
-                                        <td>
-                                            <i class="fas fa-user-injured mr-1"></i>
-                                            <strong>${cita.nombrePaciente}</strong><br>
-                                            <small class="text-muted">DNI: ${cita.dniPaciente}</small>
+                                        <td colspan="9" class="text-center py-4">
+                                            <i class="fas fa-info-circle fa-2x mb-3 text-muted"></i>
+                                            <p class="text-muted">No hay citas registradas en el sistema</p>
+                                            <a href="${pageContext.request.contextPath}/CitaServlet?accion=nuevo" 
+                                               class="btn btn-primary btn-sm mt-2">
+                                                <i class="fas fa-plus mr-1"></i> Agendar Primera Cita
+                                            </a>
                                         </td>
-                                        <td>
-                                            <i class="fas fa-user-md mr-1"></i>${cita.nombreProfesional}
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-info">${cita.nombreEspecialidad}</span>
-                                        </td>
-                                        <td><i class="far fa-calendar mr-1"></i>${cita.fechaCita}</td>
-                                        <td><i class="far fa-clock mr-1"></i>${cita.horaCita}</td>
-                                        <td>
-                                    <c:choose>
-                                        <c:when test="${not empty cita.motivoConsulta}">
-                                            <small>${cita.motivoConsulta}</small>
-                                        </c:when>
-                                        <c:otherwise>
-                                            <span class="text-muted">-</span>
-                                        </c:otherwise>
-                                    </c:choose>
-                                    </td>
-                                    <td>
-                                    <c:choose>
-                                        <c:when test="${cita.estado == 'PENDIENTE'}">
-                                            <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pendiente</span>
-                                        </c:when>
-                                        <c:when test="${cita.estado == 'CONFIRMADA'}">
-                                            <span class="badge badge-info"><i class="fas fa-check mr-1"></i>Confirmada</span>
-                                        </c:when>
-                                        <c:when test="${cita.estado == 'COMPLETADA'}">
-                                            <span class="badge badge-success"><i class="fas fa-check-double mr-1"></i>Completada</span>
-                                        </c:when>
-                                        <c:when test="${cita.estado == 'CANCELADA'}">
-                                            <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Cancelada</span>
-                                        </c:when>
-                                    </c:choose>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group-vertical btn-group-sm">
-                                            <a href="${pageContext.request.contextPath}/CitaServlet?accion=editar&id=${cita.idCita}" 
-                                               class="btn btn-warning btn-xs"><i class="fas fa-edit"></i> Editar</a>
-
-                                            <c:if test="${cita.estado == 'PENDIENTE'}">
-                                                <a href="${pageContext.request.contextPath}/CitaServlet?accion=confirmar&id=${cita.idCita}" 
-                                                   class="btn btn-info btn-xs"
-                                                   onclick="return confirm('¿Confirmar esta cita?')">
-                                                    <i class="fas fa-check"></i> Confirmar
-                                                </a>
-                                            </c:if>
-
-                                            <c:if test="${cita.estado == 'CONFIRMADA'}">
-                                                <a href="${pageContext.request.contextPath}/CitaServlet?accion=completar&id=${cita.idCita}" 
-                                                   class="btn btn-success btn-xs"
-                                                   onclick="return confirm('¿Marcar como completada?')">
-                                                    <i class="fas fa-check-double"></i> Completar
-                                                </a>
-                                            </c:if>
-
-                                            <c:if test="${cita.estado != 'CANCELADA' && cita.estado != 'COMPLETADA'}">
-                                                <a href="${pageContext.request.contextPath}/CitaServlet?accion=cancelar&id=${cita.idCita}" 
-                                                   class="btn btn-secondary btn-xs"
-                                                   onclick="return confirm('¿Cancelar esta cita?')">
-                                                    <i class="fas fa-ban"></i> Cancelar
-                                                </a>
-                                            </c:if>
-
-                                            <button type="button" class="btn btn-danger btn-xs"
-                                                    onclick="confirmarEliminacion(${cita.idCita}, '${cita.nombrePaciente}', '${cita.fechaCita}')">
-                                                <i class="fas fa-trash"></i> Eliminar
-                                            </button>
-                                        </div>
-                                    </td>
                                     </tr>
-                                </c:forEach>
-                            </c:when>
-                            <c:otherwise>
-                                <tr>
-                                    <td colspan="9" class="text-center py-4">
-                                        <i class="fas fa-info-circle fa-2x mb-3 text-muted"></i>
-                                        <p class="text-muted">No hay citas registradas en el sistema</p>
-                                        <a href="${pageContext.request.contextPath}/CitaServlet?accion=nuevo" 
-                                           class="btn btn-primary btn-sm mt-2">
-                                            <i class="fas fa-plus mr-1"></i> Agendar Primera Cita
-                                        </a>
-                                    </td>
-                                </tr>
-                            </c:otherwise>
-                        </c:choose>
+                                </c:otherwise>
+                            </c:choose>
                         </tbody>
                     </table>
                 </div>
@@ -251,46 +197,117 @@
     </div>
 </section>
 
-<!-- Script para confirmar eliminación -->
-<script>
-    function confirmarEliminacion(id, paciente, fecha) {
-        if (confirm('¿Estás seguro de eliminar la cita de "' + paciente + '" para el día ' + fecha + '?\n\nEsta acción no se puede deshacer.')) {
-            window.location.href = '${pageContext.request.contextPath}/CitaServlet?accion=eliminar&id=' + id;
-        }
-    }
-</script>
-
-<!-- Filtros dinámicos -->
-<script>
-    $(document).ready(function () {
-        $('#tipoFiltro').change(function () {
-            $('.filtro-option').hide();
-            const tipoFiltro = $(this).val();
-            if (tipoFiltro === 'estado')
-                $('#filtroEstado').show();
-            else if (tipoFiltro === 'fecha')
-                $('#filtroFecha').show();
-            else if (tipoFiltro === 'rango')
-                $('#filtroRango').show();
-        });
-    });
-</script>
-
 <!-- DataTables -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap4.min.js"></script>
 
+<!-- ✅ Script con SweetAlert2 -->
 <script>
-    $(document).ready(function() {
+                                                                const contextPath = '${pageContext.request.contextPath}';
+
+                                                                $(document).ready(function () {
+                                                                    // Inicializar tooltips
+                                                                    $('[data-toggle="tooltip"]').tooltip();
+
+                                                                    // Inicializar DataTable
     <c:if test="${not empty citas}">
-                    $('#citasTable').DataTable({
-            language: { url: "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json" },
-            order: [[4, "desc"], [5, "desc"]],
-            pageLength: 10,
-            responsive: true,
-            columnDefs: [{ orderable: false, targets: 8 }]
-                });
-                </c:if>
-    });
+                                                                    if (typeof $.fn.DataTable !== 'undefined') {
+                                                                        $('#citasTable').DataTable({
+                                                                            language: {url: "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"},
+                                                                            order: [[4, "desc"], [5, "desc"]], // Ordenar por fecha y hora
+                                                                            pageLength: 10,
+                                                                            responsive: true,
+                                                                            columnDefs: [{orderable: false, targets: 8}] // Deshabilitar orden en Acciones
+                                                                        });
+                                                                    } else {
+                                                                        console.warn('DataTables no se cargó correctamente');
+                                                                    }
+    </c:if>
+                                                                });
+
+                                                                /**
+                                                                 * ✅ Eliminar cita con SweetAlert2 (doble confirmación para completadas)
+                                                                 */
+                                                                function eliminarCita(idCita, nombrePaciente, fecha, estado) {
+                                                                    // Si la cita está COMPLETADA, requiere doble confirmación
+                                                                    if (estado === 'COMPLETADA') {
+                                                                        Swal.fire({
+                                                                            title: '⚠️ ADVERTENCIA',
+                                                                            html: 'Esta cita ya fue <strong class="text-success">COMPLETADA</strong>.<br><br>' +
+                                                                                    'Eliminar una cita completada <strong class="text-danger">borrará el registro médico histórico</strong>.<br><br>' +
+                                                                                    '¿Estás seguro de eliminar la cita de <strong>"' + nombrePaciente + '"</strong> del <strong>' + fecha + '</strong>?',
+                                                                            icon: 'error',
+                                                                            showCancelButton: true,
+                                                                            confirmButtonColor: '#dc3545',
+                                                                            cancelButtonColor: '#6c757d',
+                                                                            confirmButtonText: '<i class="fas fa-exclamation-triangle"></i> Continuar',
+                                                                            cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                                                                            reverseButtons: true,
+                                                                            focusCancel: true
+                                                                        }).then((result) => {
+                                                                            if (result.isConfirmed) {
+                                                                                // Segunda confirmación
+                                                                                Swal.fire({
+                                                                                    title: 'Confirma nuevamente',
+                                                                                    html: '¿Eliminar cita completada?<br><small class="text-muted">Esta acción no se puede deshacer</small>',
+                                                                                    icon: 'warning',
+                                                                                    showCancelButton: true,
+                                                                                    confirmButtonColor: '#dc3545',
+                                                                                    cancelButtonColor: '#6c757d',
+                                                                                    confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                                                                                    cancelButtonText: '<i class="fas fa-times"></i> No',
+                                                                                    reverseButtons: true,
+                                                                                    focusCancel: true
+                                                                                }).then((result2) => {
+                                                                                    if (result2.isConfirmed) {
+                                                                                        // Mostrar mensaje de carga
+                                                                                        Swal.fire({
+                                                                                            title: 'Eliminando...',
+                                                                                            html: 'Eliminando cita completada',
+                                                                                            allowOutsideClick: false,
+                                                                                            allowEscapeKey: false,
+                                                                                            didOpen: () => {
+                                                                                                Swal.showLoading();
+                                                                                            }
+                                                                                        });
+
+                                                                                        // Eliminar
+                                                                                        window.location.href = contextPath + '/CitaServlet?accion=eliminar&id=' + idCita;
+                                                                                    }
+                                                                                });
+                                                                            }
+                                                                        });
+                                                                    } else {
+                                                                        // Cita NO completada (PENDIENTE o CANCELADA)
+                                                                        Swal.fire({
+                                                                            title: '¿Eliminar cita?',
+                                                                            html: '¿Estás seguro de eliminar la cita de <strong>"' + nombrePaciente + '"</strong> para el día <strong>' + fecha + '</strong>?<br><small class="text-muted">Esta acción no se puede deshacer</small>',
+                                                                            icon: 'warning',
+                                                                            showCancelButton: true,
+                                                                            confirmButtonColor: '#dc3545',
+                                                                            cancelButtonColor: '#6c757d',
+                                                                            confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                                                                            cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                                                                            reverseButtons: true,
+                                                                            focusCancel: true
+                                                                        }).then((result) => {
+                                                                            if (result.isConfirmed) {
+                                                                                // Mostrar mensaje de carga
+                                                                                Swal.fire({
+                                                                                    title: 'Eliminando...',
+                                                                                    html: 'Eliminando cita médica',
+                                                                                    allowOutsideClick: false,
+                                                                                    allowEscapeKey: false,
+                                                                                    didOpen: () => {
+                                                                                        Swal.showLoading();
+                                                                                    }
+                                                                                });
+
+                                                                                // Eliminar
+                                                                                window.location.href = contextPath + '/CitaServlet?accion=eliminar&id=' + idCita;
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                }
 </script>

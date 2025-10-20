@@ -3,6 +3,122 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
+<!-- CSS personalizado -->
+<style>
+    .badge-lg {
+        font-size: 1rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .codigo-receta {
+        font-family: 'Courier New', monospace;
+        font-size: 1.2rem;
+        font-weight: bold;
+        letter-spacing: 2px;
+    }
+
+    /* Estilos para impresión */
+    @media print {
+        /* Ocultar elementos no necesarios */
+        .content-header,
+        .breadcrumb,
+        .card-footer,
+        .btn,
+        .alert,
+        .info-box {
+            display: none !important;
+        }
+
+        /* Optimizar espacios */
+        body {
+            font-size: 11pt;
+        }
+
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .card-body {
+            padding: 10px !important;
+        }
+
+        .card-header {
+            background: none !important;
+            border: none !important;
+            padding: 5px 0 !important;
+        }
+
+        /* Header compacto */
+        .header-receta {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+
+        /* Secciones más compactas */
+        .seccion-receta {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+        }
+
+        .seccion-receta h6 {
+            margin: 0 0 3px 0;
+            font-size: 10pt;
+            font-weight: bold;
+        }
+
+        .seccion-receta p {
+            margin: 0;
+            font-size: 10pt;
+        }
+
+        /* Firma compacta */
+        .firma-receta {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #000;
+        }
+
+        /* Símbolo Rx más pequeño */
+        .rx-symbol {
+            font-size: 2.5rem !important;
+            margin: 5px 0 !important;
+        }
+
+        /* Datos del paciente en tabla */
+        .tabla-paciente {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .tabla-paciente td {
+            padding: 3px 5px;
+            border: 1px solid #ddd;
+            font-size: 10pt;
+        }
+
+        .tabla-paciente td:first-child {
+            background: #f0f0f0;
+            font-weight: bold;
+            width: 30%;
+        }
+    }
+
+    @media screen {
+        .header-receta {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #007bff;
+        }
+    }
+</style>
+
 <!-- Validar que la receta existe -->
 <c:if test="${empty receta}">
     <section class="content">
@@ -21,14 +137,14 @@
 <!-- Mostrar detalle si receta existe -->
 <c:if test="${not empty receta}">
 
-    <!-- Content Header -->
+    <!-- Content Header (solo pantalla) -->
     <div class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
                     <h1 class="m-0">
                         <i class="fas fa-prescription mr-2"></i>
-                        Receta Médica #${receta.idReceta}
+                        Receta Médica: <span class="codigo-receta text-primary">${receta.codigoReceta}</span>
                     </h1>
                 </div>
                 <div class="col-sm-6">
@@ -50,15 +166,18 @@
     <section class="content">
         <div class="container-fluid">
 
+            <!-- Alertas (solo pantalla) -->
+            <jsp:include page="/componentes/alert.jsp"/>
+
             <div class="row">
                 <div class="col-md-10 offset-md-1">
 
-                    <!-- Card Principal de la Receta -->
+                    <!-- Card Principal -->
                     <div class="card card-outline ${not empty vigente && vigente ? 'card-success' : 'card-danger'}">
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-file-prescription mr-2"></i>
-                                Receta Médica N° ${receta.idReceta}
+                                Receta Médica: <span class="codigo-receta">${receta.codigoReceta}</span>
                             </h3>
                             <div class="card-tools">
                                 <c:choose>
@@ -80,226 +199,178 @@
 
                         <div class="card-body">
 
-                            <!-- Información del Paciente -->
-                            <div class="card card-info">
-                                <div class="card-header">
-                                    <h3 class="card-title">
-                                        <i class="fas fa-user-circle mr-2"></i>
-                                        Información del Paciente
-                                    </h3>
-                                </div>
-                                <div class="card-body">
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-3">Nombre Completo:</dt>
-                                        <dd class="col-sm-9">
-                                            <strong>${not empty receta.nombrePaciente ? receta.nombrePaciente : 'No especificado'}</strong>
-                                        </dd>
-
-                                        <dt class="col-sm-3">DNI:</dt>
-                                        <dd class="col-sm-9">
-                                            ${not empty receta.dniPaciente ? receta.dniPaciente : 'No especificado'}
-                                        </dd>
-                                    </dl>
-                                </div>
+                            <!-- ✅ HEADER PARA IMPRESIÓN -->
+                            <div class="header-receta text-center">
+                                <h2 style="margin: 0; font-size: 18pt; font-weight: bold;">
+                                    CENTRO DE SALUD LA LIBERTAD
+                                </h2>
+                                <p style="margin: 5px 0 0 0; font-size: 10pt;">
+                                    Receta Médica Digital N° <span class="codigo-receta">${receta.codigoReceta}</span>
+                                </p>
                             </div>
 
-                            <!-- Información del Profesional -->
-                            <div class="card card-primary">
-                                <div class="card-header">
-                                    <h3 class="card-title">
-                                        <i class="fas fa-user-md mr-2"></i>
-                                        Profesional que Emite
-                                    </h3>
-                                </div>
-                                <div class="card-body">
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-3">Nombre:</dt>
-                                        <dd class="col-sm-9">
-                                            <strong>${not empty receta.nombreProfesional ? receta.nombreProfesional : 'No especificado'}</strong>
-                                        </dd>
-
-                                        <dt class="col-sm-3">Especialidad:</dt>
-                                        <dd class="col-sm-9">
-                                            ${not empty receta.nombreEspecialidad ? receta.nombreEspecialidad : 'No especificada'}
-                                        </dd>
-                                    </dl>
-                                </div>
+                            <!-- ✅ DATOS DEL PROFESIONAL (Compacto) -->
+                            <div style="margin-bottom: 15px;">
+                                <strong style="font-size: 11pt;">
+                                    ${not empty receta.nombreProfesional ? receta.nombreProfesional : 'No especificado'}
+                                </strong>
+                                <br>
+                                <span style="font-size: 10pt; color: #666;">
+                                    ${not empty receta.nombreEspecialidad ? receta.nombreEspecialidad : 'No especificada'}
+                                </span>
                             </div>
 
-                            <!-- Prescripción Médica -->
-                            <div class="card card-warning">
-                                <div class="card-header">
-                                    <h3 class="card-title">
-                                        <i class="fas fa-pills mr-2"></i>
-                                        Prescripción Médica
-                                    </h3>
-                                </div>
-                                <div class="card-body">
+                            <!-- ✅ DATOS DEL PACIENTE (Tabla compacta) -->
+                            <table class="tabla-paciente">
+                                <tr>
+                                    <td>Paciente:</td>
+                                    <td>${not empty receta.nombrePaciente ? receta.nombrePaciente : 'No especificado'}</td>
+                                </tr>
+                                <tr>
+                                    <td>DNI:</td>
+                                    <td>${not empty receta.dniPaciente ? receta.dniPaciente : 'No especificado'}</td>
+                                </tr>
+                                <tr>
+                                    <td>Código Paciente:</td>
+                                    <td>${receta.codigoPaciente}</td>
+                                </tr>
+                                <tr>
+                                    <td>Edad:</td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${not empty paciente && paciente.edad > 0}">
+                                                ${paciente.edad} años
+                                            </c:when>
+                                            <c:otherwise>
+                                                No disponible
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Fecha Emisión:</td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${not empty receta.fechaEmision}">
+                                                <fmt:parseDate value="${receta.fechaEmision}" pattern="yyyy-MM-dd" var="fechaEmisionParseada"/>
+                                                <fmt:formatDate value="${fechaEmisionParseada}" pattern="dd/MM/yyyy"/>
+                                            </c:when>
+                                            <c:otherwise>No especificada</c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </tr>
+                            </table>
 
-                                    <!-- Medicamentos -->
-                                    <div class="mb-3">
-                                        <strong class="text-primary">
-                                            <i class="fas fa-capsules mr-1"></i>
-                                            Medicamentos Prescritos:
-                                        </strong>
-                                        <c:if test="${not empty receta.medicamentos}">
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.medicamentos}
-                                            </p>
-                                        </c:if>
-                                        <c:if test="${empty receta.medicamentos}">
-                                            <p class="mb-0 mt-2 text-muted">No especificado</p>
-                                        </c:if>
-                                    </div>
-
-                                    <!-- Dosis -->
-                                    <div class="mb-3">
-                                        <strong class="text-success">
-                                            <i class="fas fa-prescription-bottle mr-1"></i>
-                                            Dosis:
-                                        </strong>
-                                        <c:if test="${not empty receta.dosis}">
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.dosis}
-                                            </p>
-                                        </c:if>
-                                        <c:if test="${empty receta.dosis}">
-                                            <p class="mb-0 mt-2 text-muted">No especificada</p>
-                                        </c:if>
-                                    </div>
-
-                                    <!-- Frecuencia -->
-                                    <div class="mb-3">
-                                        <strong class="text-warning">
-                                            <i class="fas fa-clock mr-1"></i>
-                                            Frecuencia:
-                                        </strong>
-                                        <c:if test="${not empty receta.frecuencia}">
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.frecuencia}
-                                            </p>
-                                        </c:if>
-                                        <c:if test="${empty receta.frecuencia}">
-                                            <p class="mb-0 mt-2 text-muted">No especificada</p>
-                                        </c:if>
-                                    </div>
-
-                                    <!-- Duración -->
-                                    <c:if test="${not empty receta.duracion}">
-                                        <div class="mb-3">
-                                            <strong class="text-info">
-                                                <i class="fas fa-calendar-alt mr-1"></i>
-                                                Duración del Tratamiento:
-                                            </strong>
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.duracion}
-                                            </p>
-                                        </div>
-                                    </c:if>
-
-                                    <!-- Indicaciones -->
-                                    <div class="mb-3">
-                                        <strong class="text-danger">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i>
-                                            Indicaciones Generales:
-                                        </strong>
-                                        <c:if test="${not empty receta.indicaciones}">
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.indicaciones}
-                                            </p>
-                                        </c:if>
-                                        <c:if test="${empty receta.indicaciones}">
-                                            <p class="mb-0 mt-2 text-muted">No especificadas</p>
-                                        </c:if>
-                                    </div>
-
-                                    <!-- Observaciones -->
-                                    <c:if test="${not empty receta.observaciones}">
-                                        <div class="mb-0">
-                                            <strong class="text-secondary">
-                                                <i class="fas fa-sticky-note mr-1"></i>
-                                                Observaciones Adicionales:
-                                            </strong>
-                                            <p class="mb-0 mt-2 p-3 bg-light border rounded">
-                                                ${receta.observaciones}
-                                            </p>
-                                        </div>
-                                    </c:if>
-
-                                </div>
+                            <!-- ✅ SÍMBOLO Rx -->
+                            <div class="text-center" style="margin: 10px 0;">
+                                <h1 class="rx-symbol" style="font-size: 3rem; font-weight: bold; color: #007bff; margin: 10px 0;">℞</h1>
                             </div>
 
-                            <!-- Información de Fechas -->
-                            <div class="row">
+                            <!-- ✅ PRESCRIPCIÓN (Compacta) -->
+                            <div class="seccion-receta">
+                                <h6><i class="fas fa-capsules mr-1"></i> Medicamentos:</h6>
+                                <p>${not empty receta.medicamentos ? receta.medicamentos : 'No especificado'}</p>
+                            </div>
+
+                            <div class="row" style="margin-bottom: 8px;">
                                 <div class="col-md-6">
-                                    <div class="info-box bg-gradient-info">
-                                        <span class="info-box-icon"><i class="far fa-calendar"></i></span>
-                                        <div class="info-box-content">
-                                            <span class="info-box-text">Fecha de Emisión</span>
-                                            <span class="info-box-number">
-                                                <c:if test="${not empty receta.fechaEmision}">
-                                                    <fmt:parseDate value="${receta.fechaEmision}" pattern="yyyy-MM-dd" var="fechaEmisionParseada"/>
-                                                    <fmt:formatDate value="${fechaEmisionParseada}" pattern="dd/MM/yyyy"/>
-                                                </c:if>
-                                                <c:if test="${empty receta.fechaEmision}">
-                                                    <span class="text-muted">No especificada</span>
-                                                </c:if>
-                                            </span>
-                                        </div>
+                                    <div class="seccion-receta">
+                                        <h6><i class="fas fa-prescription-bottle mr-1"></i> Dosis:</h6>
+                                        <p>${not empty receta.dosis ? receta.dosis : 'No especificada'}</p>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="info-box ${not empty vigente && vigente ? 'bg-gradient-success' : 'bg-gradient-danger'}">
-                                        <span class="info-box-icon"><i class="far fa-calendar-check"></i></span>
-                                        <div class="info-box-content">
-                                            <span class="info-box-text">Vigente Hasta</span>
-                                            <span class="info-box-number">
-                                                <c:if test="${not empty receta.fechaVigencia}">
-                                                    <fmt:parseDate value="${receta.fechaVigencia}" pattern="yyyy-MM-dd" var="fechaVigParseada"/>
-                                                    <fmt:formatDate value="${fechaVigParseada}" pattern="dd/MM/yyyy"/>
-                                                </c:if>
-                                                <c:if test="${empty receta.fechaVigencia}">
-                                                    <span class="text-muted">No especificada</span>
-                                                </c:if>
-                                            </span>
-                                        </div>
+                                    <div class="seccion-receta">
+                                        <h6><i class="fas fa-clock mr-1"></i> Frecuencia:</h6>
+                                        <p>${not empty receta.frecuencia ? receta.frecuencia : 'No especificada'}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Información de la Cita Vinculada -->
+                            <c:if test="${not empty receta.duracion}">
+                                <div class="seccion-receta">
+                                    <h6><i class="fas fa-calendar-alt mr-1"></i> Duración:</h6>
+                                    <p>${receta.duracion}</p>
+                                </div>
+                            </c:if>
+
+                            <div class="seccion-receta">
+                                <h6><i class="fas fa-exclamation-triangle mr-1"></i> Indicaciones:</h6>
+                                <p>${not empty receta.indicaciones ? receta.indicaciones : 'No especificadas'}</p>
+                            </div>
+
+                            <c:if test="${not empty receta.observaciones}">
+                                <div class="seccion-receta">
+                                    <h6><i class="fas fa-sticky-note mr-1"></i> Observaciones:</h6>
+                                    <p>${receta.observaciones}</p>
+                                </div>
+                            </c:if>
+
+                            <!-- ✅ VIGENCIA (Compacto) -->
+                            <div style="margin: 10px 0; padding: 5px; background: ${not empty vigente && vigente ? '#d4edda' : '#f8d7da'}; border-radius: 3px;">
+                                <strong>Vigente hasta:</strong>
+                                <c:choose>
+                                    <c:when test="${not empty receta.fechaVigencia}">
+                                        <fmt:parseDate value="${receta.fechaVigencia}" pattern="yyyy-MM-dd" var="fechaVigParseada"/>
+                                        <fmt:formatDate value="${fechaVigParseada}" pattern="dd/MM/yyyy"/>
+                                    </c:when>
+                                    <c:otherwise>No especificada</c:otherwise>
+                                </c:choose>
+                            </div>
+
+                            <!-- ✅ CITA VINCULADA (Compacto) -->
                             <c:if test="${not empty receta.fechaCita}">
-                                <div class="alert alert-light border">
-                                    <i class="fas fa-link mr-2"></i>
-                                    <strong>Cita Vinculada:</strong>
+                                <div style="margin: 10px 0; padding: 5px; background: #e7f3ff; border-left: 3px solid #007bff; font-size: 9pt;">
+                                    <strong>Cita:</strong> ${receta.codigoCita} -
                                     <fmt:parseDate value="${receta.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaParseada"/>
                                     <fmt:formatDate value="${fechaCitaParseada}" pattern="dd/MM/yyyy"/>
                                     <c:if test="${not empty receta.horaCita && fn:length(receta.horaCita) >= 5}">
-                                        a las ${fn:substring(receta.horaCita, 0, 5)}
-                                    </c:if>
-                                    <c:if test="${not empty receta.motivoConsulta}">
-                                        - ${receta.motivoConsulta}
+                                        ${fn:substring(receta.horaCita, 0, 5)}
                                     </c:if>
                                 </div>
                             </c:if>
 
+                            <!-- ✅ FIRMA (Compacta) -->
+                            <div class="firma-receta text-right">
+                                <p style="margin: 0; font-size: 10pt;">
+                                    _________________________________
+                                </p>
+                                <p style="margin: 2px 0; font-size: 10pt; font-weight: bold;">
+                                    ${not empty receta.nombreProfesional ? receta.nombreProfesional : 'Profesional'}
+                                </p>
+                                <p style="margin: 2px 0; font-size: 9pt; color: #666;">
+                                    ${not empty receta.nombreEspecialidad ? receta.nombreEspecialidad : 'Especialidad'}
+                                </p>
+                                <p style="margin: 2px 0; font-size: 8pt; color: #999;">
+                                    Centro de Salud La Libertad
+                                </p>
+                            </div>
+
                         </div>
 
-                        <!-- Botones de Acción -->
+                        <!-- Botones de Acción (solo pantalla) -->
                         <div class="card-footer">
-                            <a href="${pageContext.request.contextPath}/RecetaMedicaServlet?accion=editar&id=${receta.idReceta}" 
-                               class="btn btn-primary">
-                                <i class="fas fa-edit mr-2"></i>
-                                Editar Receta
-                            </a>
-                            <button type="button" 
-                                    class="btn btn-danger"
-                                    onclick="eliminarReceta(${receta.idReceta})">
-                                <i class="fas fa-trash mr-2"></i>
-                                Eliminar Receta
-                            </button>
+                            <div class="btn-group" role="group">
+                                <a href="${pageContext.request.contextPath}/RecetaMedicaServlet?accion=editar&id=${receta.idReceta}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-edit mr-1"></i>
+                                    Editar
+                                </a>
+                                <button type="button" 
+                                        class="btn btn-danger"
+                                        onclick="eliminarReceta(${receta.idReceta})">
+                                    <i class="fas fa-trash mr-1"></i>
+                                    Eliminar
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-info"
+                                        onclick="window.print()">
+                                    <i class="fas fa-print mr-1"></i>
+                                    Imprimir
+                                </button>
+                            </div>
                             <a href="${pageContext.request.contextPath}/RecetaMedicaServlet" 
-                               class="btn btn-secondary">
+                               class="btn btn-secondary float-right">
                                 <i class="fas fa-arrow-left mr-2"></i>
                                 Volver al Listado
                             </a>
@@ -315,16 +386,42 @@
 
 </c:if>
 
-<!-- Script -->
+<!-- ✅ Script con SweetAlert2 -->
 <script>
-    /**
-     * Elimina una receta médica después de pedir confirmación
-     */
-    function eliminarReceta(idReceta) {
-        if (confirm('¿Estás seguro de eliminar esta receta médica?\n\nEsta acción no se puede deshacer.')) {
+const contextPath = '${pageContext.request.contextPath}';
+
+/**
+ * Eliminar receta médica con SweetAlert2
+ */
+function eliminarReceta(idReceta) {
+    Swal.fire({
+        title: '¿Eliminar receta médica?',
+        html: '¿Estás seguro de eliminar esta receta médica?<br><small class="text-muted">Esta acción no se puede deshacer</small>',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+        cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+        reverseButtons: true,
+        focusCancel: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar mensaje de carga
+            Swal.fire({
+                title: 'Eliminando...',
+                html: 'Eliminando receta médica',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Crear y enviar formulario
             var form = document.createElement('form');
             form.method = 'POST';
-            form.action = '${pageContext.request.contextPath}/RecetaMedicaServlet';
+            form.action = contextPath + '/RecetaMedicaServlet';
 
             var inputAccion = document.createElement('input');
             inputAccion.type = 'hidden';
@@ -341,5 +438,6 @@
             document.body.appendChild(form);
             form.submit();
         }
-    }
+    });
+}
 </script>

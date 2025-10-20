@@ -68,7 +68,7 @@
                                            class="form-control" 
                                            id="nombreCompleto" 
                                            name="nombreCompleto" 
-                                           value="${usuario != null ? usuario.nombreCompleto : param.nombreCompleto}" 
+                                           value="${accion == 'actualizar' && usuario != null ? usuario.nombreCompleto : ''}" 
                                            placeholder="Ingrese el nombre completo"
                                            required>
                                 </div>
@@ -89,7 +89,7 @@
                                            class="form-control" 
                                            id="email" 
                                            name="email" 
-                                           value="${usuario != null ? usuario.email : param.email}" 
+                                           value="${accion == 'actualizar' && usuario != null ? usuario.email : ''}" 
                                            placeholder="correo@ejemplo.com"
                                            required>
                                 </div>
@@ -147,15 +147,13 @@
                                     </div>
                                     <select class="form-control" id="idRol" name="idRol" required>
                                         <option value="">Seleccione un rol</option>
-                                        <option value="1" ${(usuario != null && usuario.idRol == 1) || param.idRol == '1' ? 'selected' : ''}>
-                                            Administrador
-                                        </option>
-                                        <option value="2" ${(usuario != null && usuario.idRol == 2) || param.idRol == '2' ? 'selected' : ''}>
-                                            Especialista Médico
-                                        </option>
-                                        <option value="3" ${(usuario != null && usuario.idRol == 3) || param.idRol == '3' ? 'selected' : ''}>
-                                            Especialista No Médico
-                                        </option>
+                                        <!-- ⬇️ CAMBIO: Usar roles dinámicos desde la base de datos -->
+                                        <c:forEach var="rol" items="${roles}">
+                                            <option value="${rol.idRol}" 
+                                                    ${accion == 'actualizar' && usuario != null && usuario.idRol == rol.idRol ? 'selected' : ''}>
+                                                ${rol.nombre}
+                                            </option>
+                                        </c:forEach>
                                     </select>
                                 </div>
                             </div>

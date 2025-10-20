@@ -1,5 +1,7 @@
 package model;
 
+import util.GeneradorCodigos;
+
 public class Profesional {
 
     private int idProfesional;
@@ -12,10 +14,13 @@ public class Profesional {
     private String nombreEspecialidad;
     private String nombreRol;
     private boolean activo;
-    
+
     // ✅ AGREGAR estos atributos
     private String biografiaProfesional;
     private int aniosExperiencia;
+
+    private String codigoProfesional;
+    private int idRol;
 
     public Profesional() {
     }
@@ -123,4 +128,25 @@ public class Profesional {
     public void setAniosExperiencia(int aniosExperiencia) {
         this.aniosExperiencia = aniosExperiencia;
     }
+
+    public String getCodigoProfesional() {
+        if (codigoProfesional == null && idProfesional > 0 && idRol > 0) {
+            codigoProfesional = GeneradorCodigos.generarCodigoProfesional(idProfesional, idRol);
+        }
+        return codigoProfesional;
+    }
+
+    public void setCodigoProfesional(String codigoProfesional) {
+        this.codigoProfesional = codigoProfesional;
+    }
+
+// Getter y Setter para idRol (si no lo tienes)
+    public int getIdRol() {
+        return idRol;
+    }
+
+    public void setIdRol(int idRol) {
+        this.idRol = idRol;
+    }
+
 }

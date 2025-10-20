@@ -39,6 +39,7 @@ public class HorarioProfesionalServlet extends HttpServlet {
 
         // Solo profesionales (rol 2 y 3) y admin (rol 1) pueden acceder
         if (rol != 1 && rol != 2 && rol != 3) {
+            session.setAttribute("error", "No tienes permisos para acceder a esta sección");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -108,8 +109,21 @@ public class HorarioProfesionalServlet extends HttpServlet {
             } else {
                 // Profesional: Ver solo sus horarios
                 int idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
+
+                if (idProfesional == 0) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "No se encontró información del profesional");
+                    request.setAttribute("horarios", new java.util.ArrayList<>());
+                    request.getRequestDispatcher("/profesional/horarios.jsp").forward(request, response);
+                    return;
+                }
+
                 horarios = horarioDAO.listarHorariosPorProfesional(idProfesional);
                 vistaJSP = "/profesional/horarios.jsp";
+            }
+
+            if (horarios == null) {
+                horarios = new java.util.ArrayList<>();
             }
 
             request.setAttribute("horarios", horarios);
@@ -117,7 +131,9 @@ public class HorarioProfesionalServlet extends HttpServlet {
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al cargar los horarios: " + e.getMessage());
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al cargar los horarios: " + e.getMessage());
+            request.setAttribute("horarios", new java.util.ArrayList<>());
 
             // Forward según el rol
             String vistaError = usuario.getIdRol() == 1 ? "/admin/horarios.jsp" : "/profesional/horarios.jsp";
@@ -139,6 +155,16 @@ public class HorarioProfesionalServlet extends HttpServlet {
                 request.setAttribute("profesionales", profesionales);
                 request.getRequestDispatcher("/admin/horario-form.jsp").forward(request, response);
             } else {
+                // Validar que existe el profesional
+                int idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
+
+                if (idProfesional == 0) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "No se encontró información del profesional");
+                    response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                    return;
+                }
+
                 // Profesional: Solo para sí mismo
                 request.getRequestDispatcher("/profesional/horarios-form.jsp").forward(request, response);
             }
@@ -161,23 +187,61 @@ public class HorarioProfesionalServlet extends HttpServlet {
             // Determinar el ID del profesional según el rol
             if (usuario.getIdRol() == 1) {
                 // Admin: Puede crear para cualquier profesional
-                idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
+                String idProfParam = request.getParameter("idProfesional");
+
+                if (idProfParam == null || idProfParam.trim().isEmpty()) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "Debe seleccionar un profesional");
+                    response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
+                    return;
+                }
+
+                idProfesional = Integer.parseInt(idProfParam);
             } else {
                 // Profesional: Solo para sí mismo
                 idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
+
+                if (idProfesional == 0) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "No se encontró información del profesional");
+                    response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                    return;
+                }
             }
 
+            // Validar parámetros obligatorios
+            String duracionParam = request.getParameter("duracionConsulta");
             String diaSemana = request.getParameter("diaSemana");
             String horaInicio = request.getParameter("horaInicio");
             String horaFin = request.getParameter("horaFin");
-            int duracionConsulta = Integer.parseInt(request.getParameter("duracionConsulta"));
+
+            if (duracionParam == null || duracionParam.trim().isEmpty()
+                    || diaSemana == null || diaSemana.trim().isEmpty()
+                    || horaInicio == null || horaInicio.trim().isEmpty()
+                    || horaFin == null || horaFin.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
+                return;
+            }
+
+            int duracionConsulta = Integer.parseInt(duracionParam);
+
+            // Validar rango razonable para duración
+            if (duracionConsulta < 5 || duracionConsulta > 480) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "La duración debe estar entre 5 y 480 minutos");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
+                return;
+            }
+
             boolean activo = request.getParameter("activo") != null;
 
             // Validar que hora fin sea mayor que hora inicio
             if (horaFin.compareTo(horaInicio) <= 0) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "La hora de fin debe ser mayor que la hora de inicio");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "La hora de fin debe ser mayor que la hora de inicio");
                 response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
                 return;
             }
@@ -185,8 +249,7 @@ public class HorarioProfesionalServlet extends HttpServlet {
             // Validar que no se solape con horarios existentes
             if (horarioDAO.existeSolapamiento(idProfesional, diaSemana, horaInicio, horaFin)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El horario se solapa con otro horario existente en ese día");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "El horario se solapa con otro horario existente en ese día");
                 response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
                 return;
             }
@@ -203,14 +266,17 @@ public class HorarioProfesionalServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (horarioDAO.insertarHorario(horario)) {
-                session.setAttribute("mensaje", "Horario creado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Horario creado exitosamente");
             } else {
                 session.setAttribute("error", "Error al crear el horario");
             }
 
             response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=nuevo");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -224,7 +290,16 @@ public class HorarioProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idHorario = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de horario no especificado");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
+                return;
+            }
+
+            int idHorario = Integer.parseInt(idParam);
             HorarioProfesional horario = horarioDAO.buscarHorarioPorId(idHorario);
 
             if (horario == null) {
@@ -237,7 +312,8 @@ public class HorarioProfesionalServlet extends HttpServlet {
             // Verificar que el profesional solo pueda editar sus propios horarios
             if (usuario.getIdRol() != 1) {
                 int idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
-                if (horario.getIdProfesional() != idProfesional) {
+
+                if (idProfesional == 0 || horario.getIdProfesional() != idProfesional) {
                     HttpSession session = request.getSession();
                     session.setAttribute("error", "No tienes permiso para editar este horario");
                     response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
@@ -257,6 +333,10 @@ public class HorarioProfesionalServlet extends HttpServlet {
                 request.getRequestDispatcher("/profesional/horarios-form.jsp").forward(request, response);
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de horario inválido");
+            response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -270,27 +350,74 @@ public class HorarioProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idHorario = Integer.parseInt(request.getParameter("idHorario"));
+            String idHorarioParam = request.getParameter("idHorario");
+
+            if (idHorarioParam == null || idHorarioParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de horario no especificado");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
+                return;
+            }
+
+            int idHorario = Integer.parseInt(idHorarioParam);
             int idProfesional;
 
             // Determinar el ID del profesional según el rol
             if (usuario.getIdRol() == 1) {
-                idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
+                String idProfParam = request.getParameter("idProfesional");
+
+                if (idProfParam == null || idProfParam.trim().isEmpty()) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "Debe seleccionar un profesional");
+                    response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=editar&id=" + idHorario);
+                    return;
+                }
+
+                idProfesional = Integer.parseInt(idProfParam);
             } else {
                 idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
+
+                if (idProfesional == 0) {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("error", "No se encontró información del profesional");
+                    response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
+                    return;
+                }
             }
 
+            // Validar parámetros obligatorios
+            String duracionParam = request.getParameter("duracionConsulta");
             String diaSemana = request.getParameter("diaSemana");
             String horaInicio = request.getParameter("horaInicio");
             String horaFin = request.getParameter("horaFin");
-            int duracionConsulta = Integer.parseInt(request.getParameter("duracionConsulta"));
+
+            if (duracionParam == null || duracionParam.trim().isEmpty()
+                    || diaSemana == null || diaSemana.trim().isEmpty()
+                    || horaInicio == null || horaInicio.trim().isEmpty()
+                    || horaFin == null || horaFin.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=editar&id=" + idHorario);
+                return;
+            }
+
+            int duracionConsulta = Integer.parseInt(duracionParam);
+
+            // Validar rango
+            if (duracionConsulta < 5 || duracionConsulta > 480) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "La duración debe estar entre 5 y 480 minutos");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=editar&id=" + idHorario);
+                return;
+            }
+
             boolean activo = request.getParameter("activo") != null;
 
             // Validar que hora fin sea mayor que hora inicio
             if (horaFin.compareTo(horaInicio) <= 0) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "La hora de fin debe ser mayor que la hora de inicio");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "La hora de fin debe ser mayor que la hora de inicio");
                 response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=editar&id=" + idHorario);
                 return;
             }
@@ -298,8 +425,7 @@ public class HorarioProfesionalServlet extends HttpServlet {
             // Validar solapamiento excluyendo este horario
             if (horarioDAO.existeSolapamientoExcepto(idProfesional, diaSemana, horaInicio, horaFin, idHorario)) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El horario se solapa con otro horario existente");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "El horario se solapa con otro horario existente");
                 response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet?accion=editar&id=" + idHorario);
                 return;
             }
@@ -317,14 +443,17 @@ public class HorarioProfesionalServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (horarioDAO.actualizarHorario(horario)) {
-                session.setAttribute("mensaje", "Horario actualizado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Horario actualizado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar el horario");
             }
 
             response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -338,7 +467,16 @@ public class HorarioProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idHorario = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de horario no especificado");
+                response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
+                return;
+            }
+
+            int idHorario = Integer.parseInt(idParam);
             HorarioProfesional horario = horarioDAO.buscarHorarioPorId(idHorario);
 
             if (horario == null) {
@@ -351,7 +489,8 @@ public class HorarioProfesionalServlet extends HttpServlet {
             // Verificar permisos (profesional solo puede eliminar sus horarios)
             if (usuario.getIdRol() != 1) {
                 int idProfesional = obtenerIdProfesional(usuario.getIdUsuario());
-                if (horario.getIdProfesional() != idProfesional) {
+
+                if (idProfesional == 0 || horario.getIdProfesional() != idProfesional) {
                     HttpSession session = request.getSession();
                     session.setAttribute("error", "No tienes permiso para eliminar este horario");
                     response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
@@ -362,14 +501,17 @@ public class HorarioProfesionalServlet extends HttpServlet {
             HttpSession session = request.getSession();
 
             if (horarioDAO.eliminarHorario(idHorario)) {
-                session.setAttribute("mensaje", "Horario eliminado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Horario eliminado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo eliminar el horario");
             }
 
             response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de horario inválido");
+            response.sendRedirect(request.getContextPath() + "/HorarioProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();

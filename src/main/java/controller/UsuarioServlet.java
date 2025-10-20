@@ -1,7 +1,9 @@
 package controller;
 
+import dao.RolDAO;
 import dao.UsuarioDAO;
 import model.Usuario;
+import model.Rol;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
@@ -12,10 +14,12 @@ import java.util.List;
 public class UsuarioServlet extends HttpServlet {
 
     private UsuarioDAO usuarioDAO;
+    private RolDAO rolDAO;
 
     @Override
     public void init() {
         usuarioDAO = new UsuarioDAO();
+        rolDAO = new RolDAO();
     }
 
     @Override
@@ -31,6 +35,7 @@ public class UsuarioServlet extends HttpServlet {
 
         Usuario usuarioSesion = (Usuario) session.getAttribute("usuario");
         if (usuarioSesion.getIdRol() != 1) {
+            session.setAttribute("error", "Esta sección es solo para administradores");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -103,7 +108,8 @@ public class UsuarioServlet extends HttpServlet {
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al cargar la lista de usuarios: " + e.getMessage());
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al cargar la lista de usuarios: " + e.getMessage());
             request.getRequestDispatcher("/admin/usuarios.jsp").forward(request, response);
         }
     }
@@ -115,9 +121,19 @@ public class UsuarioServlet extends HttpServlet {
     private void mostrarFormularioNuevo(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        request.setAttribute("accion", "crear");
-        request.setAttribute("tituloFormulario", "Nuevo Usuario");
-        request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+        try {
+            List<Rol> roles = rolDAO.listarRoles();
+            request.setAttribute("roles", roles);
+            request.setAttribute("accion", "crear");
+            request.setAttribute("tituloFormulario", "Nuevo Usuario");
+            request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al cargar el formulario: " + e.getMessage());
+            response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
+        }
     }
 
     // ========== CREAR USUARIO ==========
@@ -132,18 +148,58 @@ public class UsuarioServlet extends HttpServlet {
             String nombreCompleto = request.getParameter("nombreCompleto");
             String email = request.getParameter("email");
             String password = request.getParameter("password");
-            int idRol = Integer.parseInt(request.getParameter("idRol"));
+            String idRolParam = request.getParameter("idRol");
+
+            // Validar campos obligatorios
+            if (nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || email == null || email.trim().isEmpty()
+                    || password == null || password.trim().isEmpty()
+                    || idRolParam == null || idRolParam.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+
+                // Mantener los datos del formulario
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRolParam);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Usuario");
+                request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+                return;
+            }
+
+            int idRol = Integer.parseInt(idRolParam);
+
+            // Validar longitud mínima de contraseña
+            if (password.length() < 6) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "La contraseña debe tener al menos 6 caracteres");
+
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRol);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Usuario");
+                request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+                return;
+            }
 
             // Validar que el email no exista
-            if (usuarioDAO.existeEmail(email)) {
+            if (usuarioDAO.existeEmail(email.trim())) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El email ya está registrado en el sistema");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("warning", "El email ya está registrado en el sistema");
 
                 // Mantener los datos del formulario
                 request.setAttribute("nombreCompleto", nombreCompleto);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRol);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
                 request.setAttribute("accion", "crear");
                 request.setAttribute("tituloFormulario", "Nuevo Usuario");
                 request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
@@ -152,8 +208,8 @@ public class UsuarioServlet extends HttpServlet {
 
             // Crear objeto Usuario
             Usuario usuario = new Usuario();
-            usuario.setNombreCompleto(nombreCompleto);
-            usuario.setEmail(email);
+            usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setEmail(email.trim());
             usuario.setPassword(password); // TODO: Encriptar en producción
             usuario.setIdRol(idRol);
             usuario.setActivo(true);
@@ -161,14 +217,17 @@ public class UsuarioServlet extends HttpServlet {
             // Insertar en la base de datos
             HttpSession session = request.getSession();
             if (usuarioDAO.insertarUsuario(usuario)) {
-                session.setAttribute("mensaje", "Usuario creado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Usuario creado exitosamente");
             } else {
                 session.setAttribute("error", "Error al crear el usuario");
             }
 
             response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Rol de usuario inválido");
+            response.sendRedirect(request.getContextPath() + "/UsuarioServlet?accion=nuevo");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -185,10 +244,21 @@ public class UsuarioServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idUsuario = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de usuario no especificado");
+                response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
+                return;
+            }
+
+            int idUsuario = Integer.parseInt(idParam);
             Usuario usuario = usuarioDAO.buscarUsuarioPorId(idUsuario);
 
             if (usuario != null) {
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
                 request.setAttribute("usuario", usuario);
                 request.setAttribute("accion", "actualizar");
                 request.setAttribute("tituloFormulario", "Editar Usuario");
@@ -199,6 +269,10 @@ public class UsuarioServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de usuario inválido");
+            response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -209,33 +283,56 @@ public class UsuarioServlet extends HttpServlet {
 
     // ========== ACTUALIZAR USUARIO ==========
     /**
-     * Actualiza un usuario con validación de email Permite cambio opcional de
-     * contraseña
+     * Actualiza un usuario con validación de email
+     * Permite cambio opcional de contraseña
      */
     private void actualizarUsuario(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
             // Obtener datos del formulario
-            int idUsuario = Integer.parseInt(request.getParameter("idUsuario"));
+            String idUsuarioParam = request.getParameter("idUsuario");
             String nombreCompleto = request.getParameter("nombreCompleto");
             String email = request.getParameter("email");
             String password = request.getParameter("password");
-            int idRol = Integer.parseInt(request.getParameter("idRol"));
+            String idRolParam = request.getParameter("idRol");
             String activoParam = request.getParameter("activo");
+
+            if (idUsuarioParam == null || idUsuarioParam.trim().isEmpty()
+                    || nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || email == null || email.trim().isEmpty()
+                    || idRolParam == null || idRolParam.trim().isEmpty()) {
+
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
+                return;
+            }
+
+            int idUsuario = Integer.parseInt(idUsuarioParam);
+            int idRol = Integer.parseInt(idRolParam);
             boolean activo = activoParam != null && (activoParam.equals("true") || activoParam.equals("on"));
 
-            // Validar que el email no esté usado por otro usuario
-            if (usuarioDAO.existeEmailExceptoUsuario(email, idUsuario)) {
+            // Validar longitud de contraseña si se proporciona
+            if (password != null && !password.trim().isEmpty() && password.length() < 6) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El email ya está registrado por otro usuario");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("warning", "La contraseña debe tener al menos 6 caracteres");
+                response.sendRedirect(request.getContextPath() + "/UsuarioServlet?accion=editar&id=" + idUsuario);
+                return;
+            }
+
+            // Validar que el email no esté usado por otro usuario
+            if (usuarioDAO.existeEmailExceptoUsuario(email.trim(), idUsuario)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El email ya está registrado por otro usuario");
 
                 Usuario usuario = usuarioDAO.buscarUsuarioPorId(idUsuario);
                 usuario.setNombreCompleto(nombreCompleto);
                 usuario.setEmail(email);
                 usuario.setIdRol(idRol);
                 usuario.setActivo(activo);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
                 request.setAttribute("usuario", usuario);
                 request.setAttribute("accion", "actualizar");
                 request.setAttribute("tituloFormulario", "Editar Usuario");
@@ -246,8 +343,8 @@ public class UsuarioServlet extends HttpServlet {
             // Crear objeto Usuario
             Usuario usuario = new Usuario();
             usuario.setIdUsuario(idUsuario);
-            usuario.setNombreCompleto(nombreCompleto);
-            usuario.setEmail(email);
+            usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setEmail(email.trim());
             usuario.setIdRol(idRol);
             usuario.setActivo(activo);
 
@@ -263,14 +360,17 @@ public class UsuarioServlet extends HttpServlet {
 
             HttpSession session = request.getSession();
             if (actualizado) {
-                session.setAttribute("mensaje", "Usuario actualizado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Usuario actualizado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar el usuario");
             }
 
             response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -281,40 +381,59 @@ public class UsuarioServlet extends HttpServlet {
 
     // ========== ELIMINAR USUARIO ==========
     /**
-     * Elimina un usuario con validación No permite eliminar el usuario actual
-     * de la sesión
+     * Elimina un usuario con validación
+     * No permite eliminar el usuario actual de la sesión
      */
     private void eliminarUsuario(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         try {
-            int idUsuario = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de usuario no especificado");
+                response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
+                return;
+            }
+
+            int idUsuario = Integer.parseInt(idParam);
 
             // Obtener usuario de la sesión para evitar que se elimine a sí mismo
             HttpSession session = request.getSession();
             Usuario usuarioSesion = (Usuario) session.getAttribute("usuario");
 
             if (usuarioSesion.getIdUsuario() == idUsuario) {
-                session.setAttribute("error", "No puedes eliminar tu propia cuenta");
-                session.setAttribute("tipoMensaje", "warning");
+                session.setAttribute("warning", "No puedes eliminar tu propia cuenta");
                 response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
                 return;
             }
 
             // Eliminar usuario
             if (usuarioDAO.eliminarUsuario(idUsuario)) {
-                session.setAttribute("mensaje", "Usuario eliminado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Usuario eliminado exitosamente");
             } else {
-                session.setAttribute("error", "No se pudo eliminar el usuario");
+                session.setAttribute("warning", "No se pudo eliminar el usuario. Puede tener registros asociados.");
             }
 
             response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de usuario inválido");
+            response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al eliminar el usuario: " + e.getMessage());
+            
+            // Mensaje específico para errores de integridad
+            String mensaje = e.getMessage();
+            if (mensaje != null && (mensaje.contains("foreign key constraint") || mensaje.contains("constraint"))) {
+                session.setAttribute("warning", "No se puede eliminar el usuario porque tiene registros asociados (profesional, citas, etc.)");
+            } else {
+                session.setAttribute("error", "Error al eliminar el usuario: " + mensaje);
+            }
+            
             response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
         }
     }

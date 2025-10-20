@@ -52,17 +52,25 @@
 
                             <dt class="col-sm-3">Género:</dt>
                             <dd class="col-sm-9">
-                            <c:choose>
-                                <c:when test="${paciente.genero == 'M'}">Masculino</c:when>
-                                <c:when test="${paciente.genero == 'F'}">Femenino</c:when>
-                                <c:otherwise>Otro</c:otherwise>
-                            </c:choose>
+                                <c:choose>
+                                    <c:when test="${paciente.genero == 'M'}">Masculino</c:when>
+                                    <c:when test="${paciente.genero == 'F'}">Femenino</c:when>
+                                    <c:otherwise>Otro</c:otherwise>
+                                </c:choose>
                             </dd>
 
                             <dt class="col-sm-3">Fecha Nacimiento:</dt>
                             <dd class="col-sm-9">
-                            <fmt:parseDate value="${paciente.fechaNacimiento}" pattern="yyyy-MM-dd" var="fechaNacParseada"/>
-                            <fmt:formatDate value="${fechaNacParseada}" pattern="dd/MM/yyyy"/>
+                                <!-- ✅ Validación de fecha -->
+                                <c:choose>
+                                    <c:when test="${not empty paciente.fechaNacimiento}">
+                                        <fmt:parseDate value="${paciente.fechaNacimiento}" pattern="yyyy-MM-dd" var="fechaNacParseada"/>
+                                        <fmt:formatDate value="${fechaNacParseada}" pattern="dd/MM/yyyy"/>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <span class="text-muted">No registrada</span>
+                                    </c:otherwise>
+                                </c:choose>
                             </dd>
                         </dl>
                     </div>
@@ -167,9 +175,11 @@
                                         <option value="0">-- No vincular con ninguna cita --</option>
                                         <c:forEach var="cita" items="${citasCompletadas}">
                                             <option value="${cita.idCita}">
-                                            <fmt:parseDate value="${cita.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaParseada"/>
-                                            <fmt:formatDate value="${fechaCitaParseada}" pattern="dd/MM/yyyy"/>
-                                            - ${cita.horaCita.substring(0, 5)} - ${cita.motivoConsulta}
+                                                <fmt:parseDate value="${cita.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaParseada"/>
+                                                <fmt:formatDate value="${fechaCitaParseada}" pattern="dd/MM/yyyy"/>
+                                                <!-- ✅ Validación de hora y motivo -->
+                                                - ${not empty cita.horaCita && cita.horaCita.length() >= 5 ? cita.horaCita.substring(0, 5) : 'N/A'}
+                                                - ${not empty cita.motivoConsulta ? cita.motivoConsulta : 'Sin motivo'}
                                             </option>
                                         </c:forEach>
                                     </select>
@@ -179,13 +189,19 @@
                                 </div>
                             </c:if>
 
+                            <!-- Mostrar cita vinculada al editar -->
                             <c:if test="${not empty historial && not empty historial.idCita}">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle mr-2"></i>
                                     <strong>Vinculado a cita:</strong>
-                                    <fmt:parseDate value="${historial.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaVinculada"/>
-                                    <fmt:formatDate value="${fechaCitaVinculada}" pattern="dd/MM/yyyy"/>
-                                    a las ${historial.horaCita.substring(0, 5)}
+                                    <c:if test="${not empty historial.fechaCita}">
+                                        <fmt:parseDate value="${historial.fechaCita}" pattern="yyyy-MM-dd" var="fechaCitaVinculada"/>
+                                        <fmt:formatDate value="${fechaCitaVinculada}" pattern="dd/MM/yyyy"/>
+                                    </c:if>
+                                    <!-- ✅ Validación de hora -->
+                                    <c:if test="${not empty historial.horaCita && historial.horaCita.length() >= 5}">
+                                        a las ${historial.horaCita.substring(0, 5)}
+                                    </c:if>
                                 </div>
                             </c:if>
 
@@ -197,11 +213,10 @@
                                 <i class="fas fa-save mr-2"></i>
                                 ${empty historial ? 'Crear Entrada' : 'Guardar Cambios'}
                             </button>
-                            <a href="${pageContext.request.contextPath}/PacienteProfesionalServlet?accion=verHistorial&idPaciente=${paciente.idPaciente}" 
-                               class="btn btn-secondary btn-lg">
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="confirmarCancelar()">
                                 <i class="fas fa-times mr-2"></i>
                                 Cancelar
-                            </a>
+                            </button>
                         </div>
 
                     </form>
@@ -213,18 +228,66 @@
     </div>
 </section>
 
-<!-- Validación del formulario -->
+<!-- ✅ Script con SweetAlert2 -->
 <script>
+    const contextPath = '${pageContext.request.contextPath}';
+    const idPaciente = '${paciente.idPaciente}';
+
     $(document).ready(function () {
+        /**
+         * Validación del formulario con SweetAlert2
+         */
         $('#historialForm').submit(function (e) {
             var diagnostico = $('#diagnostico').val().trim();
             var tratamiento = $('#tratamiento').val().trim();
 
             if (diagnostico === '' || tratamiento === '') {
                 e.preventDefault();
-                alert('⚠️ El diagnóstico y el tratamiento son obligatorios');
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos obligatorios',
+                    text: 'El diagnóstico y el tratamiento son obligatorios',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#ffc107'
+                });
+
                 return false;
             }
         });
     });
+
+    /**
+     * Confirmar cancelación con SweetAlert2
+     */
+    function confirmarCancelar() {
+        // Verificar si hay cambios en el formulario
+        var diagnostico = $('#diagnostico').val().trim();
+        var tratamiento = $('#tratamiento').val().trim();
+        var sintomas = $('#sintomas').val().trim();
+        var observaciones = $('#observaciones').val().trim();
+
+        var hayCambios = diagnostico !== '' || tratamiento !== '' || sintomas !== '' || observaciones !== '';
+
+        if (hayCambios) {
+            Swal.fire({
+                title: '¿Cancelar sin guardar?',
+                html: 'Tienes cambios sin guardar.<br>¿Estás seguro de que deseas salir?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#6c757d',
+                cancelButtonColor: '#007bff',
+                confirmButtonText: '<i class="fas fa-times"></i> Sí, salir',
+                cancelButtonText: '<i class="fas fa-arrow-left"></i> Continuar editando',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = contextPath + '/PacienteProfesionalServlet?accion=verHistorial&idPaciente=' + idPaciente;
+                }
+            });
+        } else {
+            // Si no hay cambios, redirigir directamente
+            window.location.href = contextPath + '/PacienteProfesionalServlet?accion=verHistorial&idPaciente=' + idPaciente;
+        }
+    }
 </script>

@@ -2,19 +2,22 @@ package model;
 
 public class HistorialClinico {
 
+    // Atributos principales
     private int idHistorial;
     private int idPaciente;
     private int idProfesional;
     private Integer idCita;  // Puede ser null
     private String fechaRegistro;
     private String fechaHoraRegistro;
-    private String descripcion;  // Campo legacy
     private String sintomas;
     private String diagnostico;
     private String tratamiento;
     private String observaciones;
 
-    // Campos adicionales para JOINs (vistas)
+    // ✅ AGREGAR: Atributos para códigos
+    private String codigoCita;  // ← NUEVO
+
+    // Atributos de relación (JOIN)
     private String nombrePaciente;
     private String dniPaciente;
     private String nombreProfesional;
@@ -26,17 +29,8 @@ public class HistorialClinico {
     public HistorialClinico() {
     }
 
-    // Constructor con campos principales
-    public HistorialClinico(int idPaciente, int idProfesional, String sintomas,
-            String diagnostico, String tratamiento) {
-        this.idPaciente = idPaciente;
-        this.idProfesional = idProfesional;
-        this.sintomas = sintomas;
-        this.diagnostico = diagnostico;
-        this.tratamiento = tratamiento;
-    }
-
     // Getters y Setters
+
     public int getIdHistorial() {
         return idHistorial;
     }
@@ -85,14 +79,6 @@ public class HistorialClinico {
         this.fechaHoraRegistro = fechaHoraRegistro;
     }
 
-    public String getDescripcion() {
-        return descripcion;
-    }
-
-    public void setDescripcion(String descripcion) {
-        this.descripcion = descripcion;
-    }
-
     public String getSintomas() {
         return sintomas;
     }
@@ -125,7 +111,17 @@ public class HistorialClinico {
         this.observaciones = observaciones;
     }
 
-    // Getters y Setters para campos de JOIN
+    // ✅ NUEVO: Getter y Setter para codigoCita
+    public String getCodigoCita() {
+        return codigoCita;
+    }
+
+    public void setCodigoCita(String codigoCita) {
+        this.codigoCita = codigoCita;
+    }
+
+    // Getters y Setters de relación (JOIN)
+
     public String getNombrePaciente() {
         return nombrePaciente;
     }
@@ -180,8 +176,12 @@ public class HistorialClinico {
                 + "idHistorial=" + idHistorial
                 + ", idPaciente=" + idPaciente
                 + ", idProfesional=" + idProfesional
+                + ", idCita=" + idCita
+                + ", codigoCita='" + codigoCita + '\''  // ✅ AGREGADO
                 + ", fechaRegistro='" + fechaRegistro + '\''
+                + ", sintomas='" + sintomas + '\''
                 + ", diagnostico='" + diagnostico + '\''
+                + ", tratamiento='" + tratamiento + '\''
                 + '}';
     }
 }

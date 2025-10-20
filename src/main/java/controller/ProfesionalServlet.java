@@ -6,6 +6,7 @@ import dao.EspecialidadDAO;
 import model.Profesional;
 import model.Usuario;
 import model.Especialidad;
+import util.GeneradorCodigos;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
@@ -39,6 +40,7 @@ public class ProfesionalServlet extends HttpServlet {
 
         Usuario usuarioSesion = (Usuario) session.getAttribute("usuario");
         if (usuarioSesion.getIdRol() != 1) {
+            session.setAttribute("error", "Esta sección es solo para administradores");
             response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
             return;
         }
@@ -106,12 +108,25 @@ public class ProfesionalServlet extends HttpServlet {
         try {
             // Usar el método con JOIN para traer todos los datos
             List<Profesional> profesionales = profesionalDAO.listarProfesionalesConDetalles();
+
+            // Generar códigos para los profesionales
+            if (profesionales != null && !profesionales.isEmpty()) {
+                for (Profesional profesional : profesionales) {
+                    if (profesional.getCodigoProfesional() == null || profesional.getCodigoProfesional().isEmpty()) {
+                        profesional.setCodigoProfesional(
+                                GeneradorCodigos.generarCodigoProfesional(profesional.getIdProfesional())
+                        );
+                    }
+                }
+            }
+
             request.setAttribute("profesionales", profesionales);
             request.getRequestDispatcher("/admin/profesionales.jsp").forward(request, response);
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Error al cargar la lista de profesionales: " + e.getMessage());
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Error al cargar la lista de profesionales: " + e.getMessage());
             request.getRequestDispatcher("/admin/profesionales.jsp").forward(request, response);
         }
     }
@@ -154,19 +169,46 @@ public class ProfesionalServlet extends HttpServlet {
             String nombreCompleto = request.getParameter("nombreCompleto");
             String email = request.getParameter("email");
             String password = request.getParameter("password");
-            int idRol = Integer.parseInt(request.getParameter("idRol")); // 2 o 3
+            String idRolParam = request.getParameter("idRol");
 
             // ========== DATOS DEL PROFESIONAL ==========
-            int idEspecialidad = Integer.parseInt(request.getParameter("idEspecialidad"));
+            String idEspecialidadParam = request.getParameter("idEspecialidad");
             String numeroLicencia = request.getParameter("numeroLicencia");
             String telefono = request.getParameter("telefono");
 
-            // ========== VALIDACIONES ==========
-            // Validar que el email no exista
-            if (usuarioDAO.existeEmail(email)) {
+            // Validar campos obligatorios
+            if (nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || email == null || email.trim().isEmpty()
+                    || password == null || password.trim().isEmpty()
+                    || idRolParam == null || idRolParam.trim().isEmpty()
+                    || idEspecialidadParam == null || idEspecialidadParam.trim().isEmpty()
+                    || numeroLicencia == null || numeroLicencia.trim().isEmpty()) {
+
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El email ya está registrado en el sistema");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+
+                // Recargar formulario con datos ingresados
+                List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
+                request.setAttribute("especialidades", especialidades);
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRolParam);
+                request.setAttribute("idEspecialidad", idEspecialidadParam);
+                request.setAttribute("numeroLicencia", numeroLicencia);
+                request.setAttribute("telefono", telefono);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Profesional");
+                request.getRequestDispatcher("/admin/profesionales-form.jsp").forward(request, response);
+                return;
+            }
+
+            int idRol = Integer.parseInt(idRolParam);
+            int idEspecialidad = Integer.parseInt(idEspecialidadParam);
+
+            // Validar que el email no exista
+            if (usuarioDAO.existeEmail(email.trim())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El email ya está registrado en el sistema");
 
                 // Recargar formulario con datos ingresados
                 List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
@@ -184,10 +226,9 @@ public class ProfesionalServlet extends HttpServlet {
             }
 
             // Validar que la licencia no exista
-            if (profesionalDAO.existeLicencia(numeroLicencia)) {
+            if (profesionalDAO.existeLicencia(numeroLicencia.trim())) {
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El número de licencia ya está registrado");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("warning", "El número de licencia ya está registrado");
 
                 // Recargar formulario
                 List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
@@ -206,8 +247,8 @@ public class ProfesionalServlet extends HttpServlet {
 
             // ========== PASO 1: CREAR USUARIO ==========
             Usuario usuario = new Usuario();
-            usuario.setNombreCompleto(nombreCompleto);
-            usuario.setEmail(email);
+            usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setEmail(email.trim());
             usuario.setPassword(password); // TODO: Encriptar en producción
             usuario.setIdRol(idRol);
             usuario.setActivo(true);
@@ -221,12 +262,11 @@ public class ProfesionalServlet extends HttpServlet {
                 Profesional profesional = new Profesional();
                 profesional.setIdUsuario(usuario.getIdUsuario()); // ID generado automáticamente
                 profesional.setIdEspecialidad(idEspecialidad);
-                profesional.setNumeroLicencia(numeroLicencia);
-                profesional.setTelefono(telefono);
+                profesional.setNumeroLicencia(numeroLicencia.trim());
+                profesional.setTelefono(telefono != null ? telefono.trim() : null);
 
                 if (profesionalDAO.insertarProfesional(profesional)) {
-                    session.setAttribute("mensaje", "Profesional creado exitosamente");
-                    session.setAttribute("tipoMensaje", "success");
+                    session.setAttribute("success", "Profesional creado exitosamente");
                 } else {
                     // Si falla crear profesional, eliminar el usuario creado
                     usuarioDAO.eliminarUsuario(usuario.getIdUsuario());
@@ -238,6 +278,10 @@ public class ProfesionalServlet extends HttpServlet {
 
             response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/ProfesionalServlet?accion=nuevo");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -255,12 +299,28 @@ public class ProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idProfesional = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
+
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de profesional no especificado");
+                response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
+                return;
+            }
+
+            int idProfesional = Integer.parseInt(idParam);
 
             // Buscar profesional con detalles completos
             Profesional profesional = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
 
             if (profesional != null) {
+                // Generar código si no existe
+                if (profesional.getCodigoProfesional() == null || profesional.getCodigoProfesional().isEmpty()) {
+                    profesional.setCodigoProfesional(
+                            GeneradorCodigos.generarCodigoProfesional(profesional.getIdProfesional())
+                    );
+                }
+
                 // Cargar lista de especialidades para el select
                 List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
                 request.setAttribute("especialidades", especialidades);
@@ -275,6 +335,10 @@ public class ProfesionalServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
             }
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de profesional inválido");
+            response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -292,16 +356,28 @@ public class ProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idProfesional = Integer.parseInt(request.getParameter("idProfesional"));
-            int idEspecialidad = Integer.parseInt(request.getParameter("idEspecialidad"));
+            String idProfesionalParam = request.getParameter("idProfesional");
+            String idEspecialidadParam = request.getParameter("idEspecialidad");
             String numeroLicencia = request.getParameter("numeroLicencia");
             String telefono = request.getParameter("telefono");
 
-            // Validar que la licencia no esté usada por otro profesional
-            if (profesionalDAO.existeLicenciaExceptoProfesional(numeroLicencia, idProfesional)) {
+            if (idProfesionalParam == null || idProfesionalParam.trim().isEmpty()
+                    || idEspecialidadParam == null || idEspecialidadParam.trim().isEmpty()
+                    || numeroLicencia == null || numeroLicencia.trim().isEmpty()) {
+
                 HttpSession session = request.getSession();
-                session.setAttribute("error", "El número de licencia ya está registrado por otro profesional");
-                session.setAttribute("tipoMensaje", "danger");
+                session.setAttribute("error", "Debe completar todos los campos obligatorios");
+                response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
+                return;
+            }
+
+            int idProfesional = Integer.parseInt(idProfesionalParam);
+            int idEspecialidad = Integer.parseInt(idEspecialidadParam);
+
+            // Validar que la licencia no esté usada por otro profesional
+            if (profesionalDAO.existeLicenciaExceptoProfesional(numeroLicencia.trim(), idProfesional)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El número de licencia ya está registrado por otro profesional");
 
                 // Recargar formulario
                 Profesional profesional = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
@@ -322,21 +398,24 @@ public class ProfesionalServlet extends HttpServlet {
             Profesional profesional = new Profesional();
             profesional.setIdProfesional(idProfesional);
             profesional.setIdEspecialidad(idEspecialidad);
-            profesional.setNumeroLicencia(numeroLicencia);
-            profesional.setTelefono(telefono);
+            profesional.setNumeroLicencia(numeroLicencia.trim());
+            profesional.setTelefono(telefono != null ? telefono.trim() : null);
 
             HttpSession session = request.getSession();
 
             // Actualizar solo datos profesionales (no usuario)
             if (profesionalDAO.actualizarDatosProfesional(profesional)) {
-                session.setAttribute("mensaje", "Profesional actualizado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Profesional actualizado exitosamente");
             } else {
                 session.setAttribute("error", "No se pudo actualizar el profesional");
             }
 
             response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "Datos numéricos inválidos en el formulario");
+            response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
@@ -354,23 +433,42 @@ public class ProfesionalServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            int idProfesional = Integer.parseInt(request.getParameter("id"));
+            String idParam = request.getParameter("id");
 
+            if (idParam == null || idParam.trim().isEmpty()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "ID de profesional no especificado");
+                response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
+                return;
+            }
+
+            int idProfesional = Integer.parseInt(idParam);
             HttpSession session = request.getSession();
 
             if (profesionalDAO.eliminarProfesional(idProfesional)) {
-                session.setAttribute("mensaje", "Profesional eliminado exitosamente");
-                session.setAttribute("tipoMensaje", "success");
+                session.setAttribute("success", "Profesional eliminado exitosamente");
             } else {
-                session.setAttribute("error", "No se pudo eliminar el profesional");
+                session.setAttribute("warning", "No se pudo eliminar el profesional. Puede tener citas o horarios registrados.");
             }
 
             response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
 
+        } catch (NumberFormatException e) {
+            HttpSession session = request.getSession();
+            session.setAttribute("error", "ID de profesional inválido");
+            response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            session.setAttribute("error", "Error al eliminar el profesional: " + e.getMessage());
+
+            // Mensaje específico para errores de integridad
+            String mensaje = e.getMessage();
+            if (mensaje != null && (mensaje.contains("foreign key constraint") || mensaje.contains("constraint"))) {
+                session.setAttribute("warning", "No se puede eliminar el profesional porque tiene citas u horarios registrados");
+            } else {
+                session.setAttribute("error", "Error al eliminar el profesional: " + mensaje);
+            }
+
             response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
         }
     }

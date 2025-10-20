@@ -12,17 +12,32 @@ public class LogoutServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // Invalidar sesión
+        // Obtener nombre del usuario antes de invalidar la sesión
+        String nombreUsuario = null;
         HttpSession session = request.getSession(false);
+        
         if (session != null) {
+            // Obtener información del usuario si existe
+            Object usuario = session.getAttribute("usuario");
+            if (usuario != null && usuario instanceof model.Usuario) {
+                nombreUsuario = ((model.Usuario) usuario).getNombreCompleto();
+            }
+            
+            // Invalidar sesión
             session.invalidate();
         }
         
-        // Redirigir al login con mensaje
-        HttpSession newSession = request.getSession();
-        newSession.setAttribute("mensaje", "Sesión cerrada correctamente");
-        newSession.setAttribute("tipoMensaje", "success");
+        // Crear nueva sesión temporal para el mensaje
+        HttpSession newSession = request.getSession(true);
         
+        // Mensaje de despedida personalizado si se obtuvo el nombre
+        if (nombreUsuario != null && !nombreUsuario.isEmpty()) {
+            newSession.setAttribute("success", "¡Hasta pronto, " + nombreUsuario + "! Sesión cerrada correctamente.");
+        } else {
+            newSession.setAttribute("success", "Sesión cerrada correctamente");
+        }
+        
+        // Redirigir al login
         response.sendRedirect(request.getContextPath() + "/login.jsp");
     }
     

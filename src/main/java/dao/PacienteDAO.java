@@ -5,6 +5,7 @@ import util.ConexionDB;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import util.GeneradorCodigos;
 
 public class PacienteDAO {
 
@@ -47,6 +48,12 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+
+                // ⬇️ AGREGAR ESTA LÍNEA - Generar código automáticamente
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
+
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -71,6 +78,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 return paciente;
             }
         } catch (SQLException e) {
@@ -237,6 +247,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 return paciente;
             }
         } catch (SQLException e) {
@@ -266,6 +279,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -294,6 +310,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -370,6 +389,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -408,6 +430,9 @@ public class PacienteDAO {
                 paciente.setTelefono(rs.getString("telefono"));
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -502,9 +527,13 @@ public class PacienteDAO {
                 paciente.setEmail(rs.getString("email"));
                 paciente.setFechaRegistro(rs.getString("fecha_registro"));
 
-                // Datos adicionales (necesitarás agregar estos campos al modelo Paciente)
-                // O puedes crear un PacienteDTO para esto
-                // Por ahora, se pueden obtener por separado en el servlet
+                // ✅ Mapear campos adicionales
+                paciente.setUltimaCita(rs.getString("ultima_cita"));
+                paciente.setTotalCitas(rs.getInt("total_citas"));
+                paciente.setCitasCompletadas(rs.getInt("citas_completadas"));
+                paciente.setCodigoPaciente(
+                        GeneradorCodigos.generarCodigoPaciente(paciente.getIdPaciente())
+                );
                 pacientes.add(paciente);
             }
         } catch (SQLException e) {
@@ -512,5 +541,5 @@ public class PacienteDAO {
         }
         return pacientes;
     }
-}
 
+}

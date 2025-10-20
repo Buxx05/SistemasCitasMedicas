@@ -77,7 +77,7 @@
                                                        class="form-control" 
                                                        id="nombreCompleto" 
                                                        name="nombreCompleto" 
-                                                       value="${param.nombreCompleto}" 
+                                                       value="${accion == 'crear' ? '' : param.nombreCompleto}" 
                                                        placeholder="Ingrese el nombre completo"
                                                        required>
                                             </div>
@@ -100,7 +100,7 @@
                                                        class="form-control" 
                                                        id="email" 
                                                        name="email" 
-                                                       value="${param.email}" 
+                                                       value="${accion == 'crear' ? '' : param.email}" 
                                                        placeholder="correo@ejemplo.com"
                                                        required>
                                             </div>
@@ -155,10 +155,10 @@
                                                 </div>
                                                 <select class="form-control" id="idRol" name="idRol" required>
                                                     <option value="">Seleccione el tipo</option>
-                                                    <option value="2" ${param.idRol == '2' ? 'selected' : ''}>
+                                                    <option value="2" ${accion != 'crear' && param.idRol == '2' ? 'selected' : ''}>
                                                         Especialista Médico
                                                     </option>
-                                                    <option value="3" ${param.idRol == '3' ? 'selected' : ''}>
+                                                    <option value="3" ${accion != 'crear' && param.idRol == '3' ? 'selected' : ''}>
                                                         Especialista No Médico
                                                     </option>
                                                 </select>
@@ -216,7 +216,7 @@
                                                 <option value="">Seleccione una especialidad</option>
                                                 <c:forEach var="esp" items="${especialidades}">
                                                     <option value="${esp.idEspecialidad}" 
-                                                            ${(profesional != null && profesional.idEspecialidad == esp.idEspecialidad) || param.idEspecialidad == esp.idEspecialidad ? 'selected' : ''}>
+                                                            ${(accion == 'actualizar' && profesional != null && profesional.idEspecialidad == esp.idEspecialidad) || (accion == 'crear' && param.idEspecialidad == esp.idEspecialidad) ? 'selected' : ''}>
                                                         ${esp.nombre}
                                                     </option>
                                                 </c:forEach>
@@ -241,7 +241,7 @@
                                                    class="form-control" 
                                                    id="numeroLicencia" 
                                                    name="numeroLicencia" 
-                                                   value="${profesional != null ? profesional.numeroLicencia : param.numeroLicencia}" 
+                                                   value="${accion == 'actualizar' && profesional != null ? profesional.numeroLicencia : (accion == 'crear' && param.numeroLicencia != null ? param.numeroLicencia : '')}" 
                                                    placeholder="Ej: LIC-12345"
                                                    required>
                                         </div>
@@ -269,7 +269,7 @@
                                                    class="form-control" 
                                                    id="telefono" 
                                                    name="telefono" 
-                                                   value="${profesional != null ? profesional.telefono : param.telefono}" 
+                                                   value="${accion == 'actualizar' && profesional != null ? profesional.telefono : (accion == 'crear' && param.telefono != null ? param.telefono : '')}" 
                                                    placeholder="Ej: +51 999 888 777">
                                         </div>
                                     </div>

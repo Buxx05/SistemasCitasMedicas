@@ -45,7 +45,7 @@
                     <table id="profesionalesTable" class="table table-bordered table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Código</th>
                                 <th>Nombre Completo</th>
                                 <th>Email</th>
                                 <th>Especialidad</th>
@@ -61,25 +61,40 @@
                                 <c:when test="${not empty profesionales}">
                                     <c:forEach var="prof" items="${profesionales}">
                                         <tr>
-                                            <td>${prof.idProfesional}</td>
+                                            <!-- CÓDIGO DEL PROFESIONAL -->
+                                            <td>
+                                                <strong class="badge badge-light" style="font-size: 0.9rem;">
+                                                    ${prof.codigoProfesional}
+                                                </strong>
+                                            </td>
+
+                                            <!-- NOMBRE COMPLETO -->
                                             <td>
                                                 <i class="fas fa-user-md mr-2"></i>
                                                 ${prof.nombreUsuario}
                                             </td>
+
+                                            <!-- EMAIL -->
                                             <td>
                                                 <i class="fas fa-envelope mr-2"></i>
                                                 ${prof.emailUsuario}
                                             </td>
+
+                                            <!-- ESPECIALIDAD -->
                                             <td>
                                                 <span class="badge badge-info">
                                                     <i class="fas fa-stethoscope mr-1"></i>
                                                     ${prof.nombreEspecialidad}
                                                 </span>
                                             </td>
+
+                                            <!-- LICENCIA -->
                                             <td>
                                                 <i class="fas fa-id-card mr-1"></i>
                                                 ${prof.numeroLicencia}
                                             </td>
+
+                                            <!-- TELÉFONO -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${not empty prof.telefono}">
@@ -93,6 +108,8 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- ROL -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${prof.nombreRol == 'Especialista Médico'}">
@@ -112,6 +129,8 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- ESTADO -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${prof.activo}">
@@ -128,22 +147,27 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- ACCIONES -->
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="${pageContext.request.contextPath}/ProfesionalServlet?accion=editar&id=${prof.idProfesional}" 
                                                        class="btn btn-warning btn-sm"
-                                                       title="Editar">
+                                                       title="Editar"
+                                                       data-toggle="tooltip">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
                                                     <a href="${pageContext.request.contextPath}/UsuarioServlet?accion=editar&id=${prof.idUsuario}" 
                                                        class="btn btn-info btn-sm"
-                                                       title="Editar Usuario">
+                                                       title="Editar Usuario"
+                                                       data-toggle="tooltip">
                                                         <i class="fas fa-user-edit"></i>
                                                     </a>
                                                     <button type="button" 
                                                             class="btn btn-danger btn-sm"
-                                                            onclick="confirmarEliminacion(${prof.idProfesional}, '${prof.nombreUsuario}')"
-                                                            title="Eliminar">
+                                                            onclick="eliminarProfesional(${prof.idProfesional}, '${prof.nombreUsuario}')"
+                                                            title="Eliminar"
+                                                            data-toggle="tooltip">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -190,17 +214,6 @@
     </div>
 </section>
 
-<!-- Script para confirmar eliminación -->
-<script>
-    function confirmarEliminacion(id, nombre) {
-        if (confirm('¿Estás seguro de eliminar al profesional "' + nombre + '"?\n\n' +
-                'Nota: Esto solo eliminará el registro profesional.\n' +
-                'El usuario permanecerá en el sistema.')) {
-            window.location.href = '${pageContext.request.contextPath}/ProfesionalServlet?accion=eliminar&id=' + id;
-        }
-    }
-</script>
-
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
 
@@ -208,22 +221,67 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap4.min.js"></script>
 
-<!-- Inicializar DataTable -->
+<!-- ✅ Script con SweetAlert2 -->
 <script>
-    $(document).ready(function () {
-        // Solo inicializar DataTable si hay profesionales
+                                                                const contextPath = '${pageContext.request.contextPath}';
+
+                                                                $(document).ready(function () {
+                                                                    // Inicializar tooltips
+                                                                    $('[data-toggle="tooltip"]').tooltip();
+
+                                                                    // Inicializar DataTable solo si hay profesionales
     <c:if test="${not empty profesionales}">
-        $('#profesionalesTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
-            },
-            "order": [[0, "desc"]], // Ordenar por ID descendente
-            "pageLength": 10,
-            "responsive": true,
-            "columnDefs": [
-                {"orderable": false, "targets": 8} // Deshabilitar ordenamiento en columna Acciones
-            ]
-        });
+                                                                    if (typeof $.fn.DataTable !== 'undefined') {
+                                                                        $('#profesionalesTable').DataTable({
+                                                                            "language": {
+                                                                                "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
+                                                                            },
+                                                                            "order": [[0, "asc"]], // Ordenar por código ascendente
+                                                                            "pageLength": 10,
+                                                                            "responsive": true,
+                                                                            "columnDefs": [
+                                                                                {"orderable": false, "targets": 8} // Deshabilitar ordenamiento en columna Acciones
+                                                                            ]
+                                                                        });
+                                                                    } else {
+                                                                        console.warn('DataTables no se cargó correctamente');
+                                                                    }
     </c:if>
-    });
+                                                                });
+
+                                                                /**
+                                                                 * ✅ Eliminar profesional con SweetAlert2
+                                                                 */
+                                                                function eliminarProfesional(idProfesional, nombreProfesional) {
+                                                                    Swal.fire({
+                                                                        title: '¿Eliminar profesional?',
+                                                                        html: '¿Estás seguro de eliminar al profesional <strong>"' + nombreProfesional + '"</strong>?<br><br>' +
+                                                                                '<small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Nota: Esto solo eliminará el registro profesional.<br>' +
+                                                                                'El usuario permanecerá en el sistema.</small>',
+                                                                        icon: 'warning',
+                                                                        showCancelButton: true,
+                                                                        confirmButtonColor: '#dc3545',
+                                                                        cancelButtonColor: '#6c757d',
+                                                                        confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                                                                        cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                                                                        reverseButtons: true,
+                                                                        focusCancel: true
+                                                                    }).then((result) => {
+                                                                        if (result.isConfirmed) {
+                                                                            // Mostrar mensaje de carga
+                                                                            Swal.fire({
+                                                                                title: 'Eliminando...',
+                                                                                html: 'Eliminando registro profesional',
+                                                                                allowOutsideClick: false,
+                                                                                allowEscapeKey: false,
+                                                                                didOpen: () => {
+                                                                                    Swal.showLoading();
+                                                                                }
+                                                                            });
+
+                                                                            // Redirigir al servlet para eliminar
+                                                                            window.location.href = contextPath + '/ProfesionalServlet?accion=eliminar&id=' + idProfesional;
+                                                                        }
+                                                                    });
+                                                                }
 </script>

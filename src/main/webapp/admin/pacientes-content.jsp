@@ -45,7 +45,7 @@
                     <table id="pacientesTable" class="table table-bordered table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Código</th>
                                 <th>Nombre Completo</th>
                                 <th>DNI</th>
                                 <th>Fecha Nacimiento</th>
@@ -61,15 +61,26 @@
                                 <c:when test="${not empty pacientes}">
                                     <c:forEach var="pac" items="${pacientes}">
                                         <tr>
-                                            <td>${pac.idPaciente}</td>
+                                            <!-- CÓDIGO DEL PACIENTE -->
+                                            <td>
+                                                <strong class="badge badge-light" style="font-size: 0.9rem;">
+                                                    ${pac.codigoPaciente}
+                                                </strong>
+                                            </td>
+
+                                            <!-- NOMBRE COMPLETO -->
                                             <td>
                                                 <i class="fas fa-user mr-2"></i>
                                                 ${pac.nombreCompleto}
                                             </td>
+
+                                            <!-- DNI -->
                                             <td>
                                                 <i class="fas fa-id-card mr-1"></i>
                                                 ${pac.dni}
                                             </td>
+
+                                            <!-- FECHA NACIMIENTO -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${not empty pac.fechaNacimiento}">
@@ -83,6 +94,8 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- GÉNERO -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${pac.genero == 'M'}">
@@ -105,6 +118,8 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- TELÉFONO -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${not empty pac.telefono}">
@@ -118,6 +133,8 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- EMAIL -->
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${not empty pac.email}">
@@ -131,21 +148,27 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+
+                                            <!-- FECHA REGISTRO -->
                                             <td>
                                                 <i class="far fa-calendar-check mr-1"></i>
                                                 ${pac.fechaRegistro}
                                             </td>
+
+                                            <!-- ACCIONES -->
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="${pageContext.request.contextPath}/PacienteServlet?accion=editar&id=${pac.idPaciente}" 
                                                        class="btn btn-warning btn-sm"
-                                                       title="Editar">
+                                                       title="Editar"
+                                                       data-toggle="tooltip">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
                                                     <button type="button" 
                                                             class="btn btn-danger btn-sm"
-                                                            onclick="confirmarEliminacion(${pac.idPaciente}, '${pac.nombreCompleto}')"
-                                                            title="Eliminar">
+                                                            onclick="eliminarPaciente(${pac.idPaciente}, '${pac.nombreCompleto}')"
+                                                            title="Eliminar"
+                                                            data-toggle="tooltip">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -182,15 +205,6 @@
     </div>
 </section>
 
-<!-- Script para confirmar eliminación -->
-<script>
-    function confirmarEliminacion(id, nombre) {
-        if (confirm('¿Estás seguro de eliminar al paciente "' + nombre + '"?\n\nEsta acción no se puede deshacer.')) {
-            window.location.href = '${pageContext.request.contextPath}/PacienteServlet?accion=eliminar&id=' + id;
-        }
-    }
-</script>
-
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
 
@@ -198,21 +212,65 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap4.min.js"></script>
 
-<!-- Inicializar DataTable -->
+<!-- ✅ Script con SweetAlert2 -->
 <script>
-    $(document).ready(function () {
+                                                                const contextPath = '${pageContext.request.contextPath}';
+
+                                                                $(document).ready(function () {
+                                                                    // Inicializar tooltips
+                                                                    $('[data-toggle="tooltip"]').tooltip();
+
+                                                                    // Inicializar DataTable
     <c:if test="${not empty pacientes}">
-        $('#pacientesTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
-            },
-            "order": [[0, "desc"]], // Ordenar por ID descendente
-            "pageLength": 10,
-            "responsive": true,
-            "columnDefs": [
-                {"orderable": false, "targets": 8} // Deshabilitar ordenamiento en columna Acciones
-            ]
-        });
+                                                                    if (typeof $.fn.DataTable !== 'undefined') {
+                                                                        $('#pacientesTable').DataTable({
+                                                                            "language": {
+                                                                                "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
+                                                                            },
+                                                                            "order": [[0, "asc"]], // Ordenar por código ascendente
+                                                                            "pageLength": 10,
+                                                                            "responsive": true,
+                                                                            "columnDefs": [
+                                                                                {"orderable": false, "targets": 8} // Deshabilitar ordenamiento en columna Acciones
+                                                                            ]
+                                                                        });
+                                                                    } else {
+                                                                        console.warn('DataTables no se cargó correctamente');
+                                                                    }
     </c:if>
-    });
+                                                                });
+
+                                                                /**
+                                                                 * ✅ Eliminar paciente con SweetAlert2
+                                                                 */
+                                                                function eliminarPaciente(idPaciente, nombrePaciente) {
+                                                                    Swal.fire({
+                                                                        title: '¿Eliminar paciente?',
+                                                                        html: '¿Estás seguro de eliminar al paciente <strong>"' + nombrePaciente + '"</strong>?<br><small class="text-muted">Esta acción no se puede deshacer y eliminará todos los datos relacionados (citas, historial clínico, recetas, etc.)</small>',
+                                                                        icon: 'warning',
+                                                                        showCancelButton: true,
+                                                                        confirmButtonColor: '#dc3545',
+                                                                        cancelButtonColor: '#6c757d',
+                                                                        confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                                                                        cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                                                                        reverseButtons: true,
+                                                                        focusCancel: true
+                                                                    }).then((result) => {
+                                                                        if (result.isConfirmed) {
+                                                                            // Mostrar mensaje de carga
+                                                                            Swal.fire({
+                                                                                title: 'Eliminando...',
+                                                                                html: 'Eliminando paciente y todos sus datos relacionados',
+                                                                                allowOutsideClick: false,
+                                                                                allowEscapeKey: false,
+                                                                                didOpen: () => {
+                                                                                    Swal.showLoading();
+                                                                                }
+                                                                            });
+
+                                                                            // Redirigir al servlet para eliminar
+                                                                            window.location.href = contextPath + '/PacienteServlet?accion=eliminar&id=' + idPaciente;
+                                                                        }
+                                                                    });
+                                                                }
 </script>

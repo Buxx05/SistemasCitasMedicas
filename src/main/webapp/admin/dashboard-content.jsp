@@ -6,7 +6,10 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6">
-                <h1 class="m-0">Dashboard Administrativo</h1>
+                <h1 class="m-0">
+                    <i class="fas fa-tachometer-alt mr-2"></i>
+                    Dashboard Administrativo
+                </h1>
             </div>
             <div class="col-sm-6">
                 <ol class="breadcrumb float-sm-right">
@@ -22,10 +25,10 @@
 <section class="content">
     <div class="container-fluid">
 
-        <!-- Alertas (se muestran aquí en cada página) -->
+        <!-- Alertas -->
         <jsp:include page="/componentes/alert.jsp"/>
 
-        <!-- Small boxes (Stat box) -->
+        <!-- ========== TARJETAS PRINCIPALES ========== -->
         <div class="row">
 
             <!-- Usuarios -->
@@ -94,7 +97,7 @@
 
         </div>
 
-        <!-- Fila de contenido -->
+        <!-- ========== FILA DE CONTENIDO ========== -->
         <div class="row">
 
             <!-- Citas Recientes -->
@@ -102,7 +105,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
-                            <i class="fas fa-calendar-alt mr-1"></i>
+                            <i class="fas fa-calendar-alt mr-2"></i>
                             Citas Recientes
                         </h3>
                         <div class="card-tools">
@@ -112,76 +115,105 @@
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Paciente</th>
-                                    <th>Profesional</th>
-                                    <th>Fecha</th>
-                                    <th>Hora</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <c:choose>
-                                    <c:when test="${not empty citasRecientes}">
-                                        <c:forEach var="cita" items="${citasRecientes}">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Paciente</th>
+                                        <th>Profesional</th>
+                                        <th>Fecha</th>
+                                        <th>Hora</th>
+                                        <th>Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <c:choose>
+                                        <c:when test="${not empty citasRecientes}">
+                                            <c:forEach var="cita" items="${citasRecientes}">
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge badge-secondary">${cita.codigoCita}</span>
+                                                    </td>
+                                                    <td>${cita.nombrePaciente}</td>
+                                                    <td>${cita.nombreProfesional}</td>
+                                                    <td>
+                                                        <i class="far fa-calendar mr-1"></i>
+                                                        ${cita.fechaCita}
+                                                    </td>
+                                                    <td>
+                                                        <i class="far fa-clock mr-1"></i>
+                                                        ${cita.horaCita}
+                                                    </td>
+                                                    <td>
+                                                        <c:choose>
+                                                            <c:when test="${cita.estado == 'CONFIRMADA'}">
+                                                                <span class="badge badge-success">
+                                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                                    ${cita.estado}
+                                                                </span>
+                                                            </c:when>
+                                                            <c:when test="${cita.estado == 'PENDIENTE'}">
+                                                                <span class="badge badge-warning">
+                                                                    <i class="fas fa-clock mr-1"></i>
+                                                                    ${cita.estado}
+                                                                </span>
+                                                            </c:when>
+                                                            <c:when test="${cita.estado == 'CANCELADA'}">
+                                                                <span class="badge badge-danger">
+                                                                    <i class="fas fa-times-circle mr-1"></i>
+                                                                    ${cita.estado}
+                                                                </span>
+                                                            </c:when>
+                                                            <c:when test="${cita.estado == 'COMPLETADA'}">
+                                                                <span class="badge badge-info">
+                                                                    <i class="fas fa-check-double mr-1"></i>
+                                                                    ${cita.estado}
+                                                                </span>
+                                                            </c:when>
+                                                        </c:choose>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <a href="${pageContext.request.contextPath}/CitaServlet?accion=ver&id=${cita.idCita}" 
+                                                           class="btn btn-sm btn-info"
+                                                           title="Ver detalle">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </c:forEach>
+                                        </c:when>
+                                        <c:otherwise>
                                             <tr>
-                                                <td>${cita.idCita}</td>
-                                                <td>${cita.nombrePaciente}</td>
-                                                <td>${cita.nombreProfesional}</td>
-                                                <td>${cita.fechaCita}</td>
-                                                <td>${cita.horaCita}</td>
-                                                <td>
-                                                    <c:choose>
-                                                        <c:when test="${cita.estado == 'CONFIRMADA'}">
-                                                            <span class="badge badge-success">${cita.estado}</span>
-                                                        </c:when>
-                                                        <c:when test="${cita.estado == 'PENDIENTE'}">
-                                                            <span class="badge badge-warning">${cita.estado}</span>
-                                                        </c:when>
-                                                        <c:when test="${cita.estado == 'CANCELADA'}">
-                                                            <span class="badge badge-danger">${cita.estado}</span>
-                                                        </c:when>
-                                                        <c:when test="${cita.estado == 'COMPLETADA'}">
-                                                            <span class="badge badge-info">${cita.estado}</span>
-                                                        </c:when>
-                                                    </c:choose>
-                                                </td>
-                                                <td>
-                                                    <a href="${pageContext.request.contextPath}/CitaServlet?action=ver&id=${cita.idCita}" 
-                                                       class="btn btn-sm btn-info">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
+                                                <td colspan="7" class="text-center text-muted py-4">
+                                                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                                                    <p class="mb-0">No hay citas registradas</p>
                                                 </td>
                                             </tr>
-                                        </c:forEach>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <tr>
-                                            <td colspan="7" class="text-center">No hay citas registradas</td>
-                                        </tr>
-                                    </c:otherwise>
-                                </c:choose>
-                            </tbody>
-                        </table>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     <div class="card-footer text-center">
                         <a href="${pageContext.request.contextPath}/CitaServlet" class="btn btn-sm btn-primary">
+                            <i class="fas fa-list mr-1"></i>
                             Ver Todas las Citas
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Estadísticas del Mes -->
+            <!-- Columna Derecha: Estadísticas -->
             <div class="col-md-4">
+
+                <!-- Card: Estadísticas del Mes -->
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
-                            <i class="fas fa-chart-pie mr-1"></i>
+                            <i class="fas fa-chart-pie mr-2"></i>
                             Estadísticas del Mes
                         </h3>
                     </div>
@@ -221,6 +253,44 @@
 
                     </div>
                 </div>
+
+                <!-- Card: Distribución de Profesionales -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-user-md mr-2"></i>
+                            Profesionales por Tipo
+                        </h3>
+                    </div>
+                    <div class="card-body">
+
+                        <div class="info-box bg-gradient-success">
+                            <span class="info-box-icon"><i class="fas fa-user-md"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Médicos</span>
+                                <span class="info-box-number">${totalProfesionalesMedicos}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-box bg-gradient-info">
+                            <span class="info-box-icon"><i class="fas fa-user-nurse"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">No Médicos</span>
+                                <span class="info-box-number">${totalProfesionalesNoMedicos}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-box bg-gradient-secondary">
+                            <span class="info-box-icon"><i class="fas fa-user-shield"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Administradores</span>
+                                <span class="info-box-number">${totalAdmins}</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
 
         </div>

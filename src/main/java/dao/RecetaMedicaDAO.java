@@ -54,11 +54,15 @@ public class RecetaMedicaDAO {
     public List<RecetaMedica> listarRecetasPorProfesional(int idProfesional) {
         List<RecetaMedica> recetas = new ArrayList<>();
         String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
                 + "       p.nombre_completo AS nombre_paciente, "
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita, c.motivo_consulta "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
                 + "FROM RecetasMedicas r "
                 + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
@@ -82,16 +86,58 @@ public class RecetaMedicaDAO {
     }
 
     /**
+     * Lista solo recetas vigentes de un profesional
+     */
+    public List<RecetaMedica> listarRecetasVigentesPorProfesional(int idProfesional) {
+        List<RecetaMedica> recetas = new ArrayList<>();
+        String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
+                + "       p.nombre_completo AS nombre_paciente, "
+                + "       p.dni AS dni_paciente, "
+                + "       u.nombre_completo AS nombre_profesional, "
+                + "       e.nombre AS nombre_especialidad, "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
+                + "FROM RecetasMedicas r "
+                + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
+                + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
+                + "INNER JOIN Usuarios u ON prof.id_usuario = u.id_usuario "
+                + "INNER JOIN Especialidades e ON prof.id_especialidad = e.id_especialidad "
+                + "INNER JOIN Citas c ON r.id_cita = c.id_cita "
+                + "WHERE r.id_profesional = ? "
+                + "AND r.fecha_vigencia >= CURDATE() "
+                + "ORDER BY r.fecha_emision DESC";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                recetas.add(mapearReceta(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return recetas;
+    }
+
+    /**
      * Lista todas las recetas de un paciente
      */
     public List<RecetaMedica> listarRecetasPorPaciente(int idPaciente) {
         List<RecetaMedica> recetas = new ArrayList<>();
         String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
                 + "       p.nombre_completo AS nombre_paciente, "
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita, c.motivo_consulta "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
                 + "FROM RecetasMedicas r "
                 + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
@@ -115,16 +161,58 @@ public class RecetaMedicaDAO {
     }
 
     /**
+     * Lista recetas de un paciente con un profesional específico
+     */
+    public List<RecetaMedica> listarRecetasPorPacienteYProfesional(int idPaciente, int idProfesional) {
+        List<RecetaMedica> recetas = new ArrayList<>();
+        String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
+                + "       p.nombre_completo AS nombre_paciente, "
+                + "       p.dni AS dni_paciente, "
+                + "       u.nombre_completo AS nombre_profesional, "
+                + "       e.nombre AS nombre_especialidad, "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
+                + "FROM RecetasMedicas r "
+                + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
+                + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
+                + "INNER JOIN Usuarios u ON prof.id_usuario = u.id_usuario "
+                + "INNER JOIN Especialidades e ON prof.id_especialidad = e.id_especialidad "
+                + "INNER JOIN Citas c ON r.id_cita = c.id_cita "
+                + "WHERE r.id_paciente = ? AND r.id_profesional = ? "
+                + "ORDER BY r.fecha_emision DESC";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idPaciente);
+            stmt.setInt(2, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                recetas.add(mapearReceta(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return recetas;
+    }
+
+    /**
      * Lista recetas de una cita específica
      */
     public List<RecetaMedica> listarRecetasPorCita(int idCita) {
         List<RecetaMedica> recetas = new ArrayList<>();
         String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
                 + "       p.nombre_completo AS nombre_paciente, "
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita, c.motivo_consulta "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
                 + "FROM RecetasMedicas r "
                 + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
@@ -153,11 +241,15 @@ public class RecetaMedicaDAO {
      */
     public RecetaMedica buscarRecetaPorId(int idReceta) {
         String sql = "SELECT r.*, "
+                + "       p.id_paciente, " // ✅ AGREGADO
                 + "       p.nombre_completo AS nombre_paciente, "
                 + "       p.dni AS dni_paciente, "
                 + "       u.nombre_completo AS nombre_profesional, "
                 + "       e.nombre AS nombre_especialidad, "
-                + "       c.fecha_cita, c.hora_cita, c.motivo_consulta "
+                + "       c.id_cita, " // ✅ AGREGADO
+                + "       c.fecha_cita, "
+                + "       c.hora_cita, "
+                + "       c.motivo_consulta "
                 + "FROM RecetasMedicas r "
                 + "INNER JOIN Pacientes p ON r.id_paciente = p.id_paciente "
                 + "INNER JOIN Profesionales prof ON r.id_profesional = prof.id_profesional "
@@ -243,16 +335,63 @@ public class RecetaMedicaDAO {
         return total;
     }
 
+    /**
+     * Cuenta recetas vigentes de un profesional
+     */
+    public int contarRecetasVigentesPorProfesional(int idProfesional) {
+        int total = 0;
+        String sql = "SELECT COUNT(*) as total FROM RecetasMedicas "
+                + "WHERE id_profesional = ? AND fecha_vigencia >= CURDATE()";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                total = rs.getInt("total");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return total;
+    }
+
+    /**
+     * Cuenta recetas de un paciente con un profesional
+     */
+    public int contarRecetasPorPacienteYProfesional(int idPaciente, int idProfesional) {
+        int total = 0;
+        String sql = "SELECT COUNT(*) as total FROM RecetasMedicas "
+                + "WHERE id_paciente = ? AND id_profesional = ?";
+
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idPaciente);
+            stmt.setInt(2, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                total = rs.getInt("total");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return total;
+    }
+
     // ========== MÉTODO AUXILIAR ==========
     /**
      * Mapea ResultSet a objeto RecetaMedica
      */
     private RecetaMedica mapearReceta(ResultSet rs) throws SQLException {
         RecetaMedica receta = new RecetaMedica();
+
+        // ✅ IDs principales (ya vienen de r.*)
         receta.setIdReceta(rs.getInt("id_receta"));
         receta.setIdCita(rs.getInt("id_cita"));
         receta.setIdProfesional(rs.getInt("id_profesional"));
         receta.setIdPaciente(rs.getInt("id_paciente"));
+
+        // Datos de la receta
         receta.setFechaEmision(rs.getString("fecha_emision"));
         receta.setIndicaciones(rs.getString("indicaciones"));
         receta.setMedicamentos(rs.getString("medicamentos"));
