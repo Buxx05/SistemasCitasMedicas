@@ -40,13 +40,18 @@ public class UsuarioDAO {
         return null;
     }
 
+    // ========== INSERTAR USUARIO (CORREGIDO) ==========
     public boolean insertarUsuario(Usuario usuario) {
-        String sql = "INSERT INTO Usuarios (nombre_completo, email, password, id_rol) VALUES (?, ?, ?, ?)";
+        // ✅ AGREGAR 'dni' en el INSERT
+        String sql = "INSERT INTO Usuarios (nombre_completo, dni, email, password, id_rol, activo, fecha_registro) "
+                + "VALUES (?, ?, ?, ?, ?, TRUE, NOW())";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, usuario.getNombreCompleto());
-            stmt.setString(2, usuario.getEmail());
-            stmt.setString(3, usuario.getPassword());
-            stmt.setInt(4, usuario.getIdRol());
+            stmt.setString(2, usuario.getDni()); // ✅ AGREGAR DNI
+            stmt.setString(3, usuario.getEmail());
+            stmt.setString(4, usuario.getPassword());
+            stmt.setInt(5, usuario.getIdRol());
+
             int affectedRows = stmt.executeUpdate();
             if (affectedRows > 0) {
                 ResultSet generatedKeys = stmt.getGeneratedKeys();
@@ -61,6 +66,7 @@ public class UsuarioDAO {
         return false;
     }
 
+    // ========== LISTAR USUARIOS (CORREGIDO) ==========
     public List<Usuario> listarUsuarios() {
         List<Usuario> usuarios = new ArrayList<>();
         String sql = "SELECT * FROM Usuarios ORDER BY id_rol, nombre_completo";
@@ -69,6 +75,7 @@ public class UsuarioDAO {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombreCompleto(rs.getString("nombre_completo"));
+                usuario.setDni(rs.getString("dni")); // ✅ AGREGAR ESTA LÍNEA
                 usuario.setEmail(rs.getString("email"));
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
@@ -81,6 +88,7 @@ public class UsuarioDAO {
         return usuarios;
     }
 
+    // ========== BUSCAR USUARIO POR ID (CORREGIDO) ==========
     public Usuario buscarUsuarioPorId(int idUsuario) {
         String sql = "SELECT * FROM Usuarios WHERE id_usuario=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -90,6 +98,7 @@ public class UsuarioDAO {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombreCompleto(rs.getString("nombre_completo"));
+                usuario.setDni(rs.getString("dni")); // ✅ AGREGAR ESTA LÍNEA
                 usuario.setEmail(rs.getString("email"));
                 usuario.setPassword(rs.getString("password"));
                 usuario.setIdRol(rs.getInt("id_rol"));
@@ -103,15 +112,18 @@ public class UsuarioDAO {
         return null;
     }
 
+    // ========== ACTUALIZAR USUARIO (CORREGIDO) ==========
     public boolean actualizarUsuario(Usuario usuario) {
-        String sql = "UPDATE Usuarios SET nombre_completo=?, email=?, password=?, id_rol=?, activo=? WHERE id_usuario=?";
+        // ✅ AGREGAR 'dni=?' en el UPDATE
+        String sql = "UPDATE Usuarios SET nombre_completo=?, dni=?, email=?, password=?, id_rol=?, activo=?, fecha_actualizacion=NOW() WHERE id_usuario=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, usuario.getNombreCompleto());
-            stmt.setString(2, usuario.getEmail());
-            stmt.setString(3, usuario.getPassword());
-            stmt.setInt(4, usuario.getIdRol());
-            stmt.setBoolean(5, usuario.isActivo());
-            stmt.setInt(6, usuario.getIdUsuario());
+            stmt.setString(2, usuario.getDni()); // ✅ AGREGAR DNI
+            stmt.setString(3, usuario.getEmail());
+            stmt.setString(4, usuario.getPassword());
+            stmt.setInt(5, usuario.getIdRol());
+            stmt.setBoolean(6, usuario.isActivo());
+            stmt.setInt(7, usuario.getIdUsuario());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -208,6 +220,7 @@ public class UsuarioDAO {
      * Lista todos los usuarios con el nombre del rol incluido Usa JOIN para
      * evitar consultas adicionales
      */
+    // ========== LISTAR USUARIOS CON ROL (CORREGIDO) ==========
     public List<Usuario> listarUsuariosConRol() {
         List<Usuario> usuarios = new ArrayList<>();
         String sql = "SELECT u.*, r.nombre as nombre_rol "
@@ -219,18 +232,16 @@ public class UsuarioDAO {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombreCompleto(rs.getString("nombre_completo"));
+                usuario.setDni(rs.getString("dni")); // ✅ AGREGAR ESTA LÍNEA
                 usuario.setEmail(rs.getString("email"));
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
                 usuario.setActivo(rs.getBoolean("activo"));
                 usuario.setNombreRol(rs.getString("nombre_rol"));
-
-                // ⬇️ AGREGAR ESTA LÍNEA
                 usuario.setCodigoUsuario(GeneradorCodigos.generarCodigoUsuario(
                         usuario.getIdRol(),
                         usuario.getIdUsuario()
                 ));
-
                 usuarios.add(usuario);
             }
         } catch (SQLException e) {
@@ -243,6 +254,7 @@ public class UsuarioDAO {
      * Busca un usuario por ID con el nombre del rol incluido Usa JOIN para
      * traer el nombre del rol en una sola consulta
      */
+    // ========== BUSCAR USUARIO POR ID CON ROL (CORREGIDO) ==========
     public Usuario buscarUsuarioPorIdConRol(int idUsuario) {
         String sql = "SELECT u.*, r.nombre as nombre_rol "
                 + "FROM Usuarios u "
@@ -255,12 +267,13 @@ public class UsuarioDAO {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombreCompleto(rs.getString("nombre_completo"));
+                usuario.setDni(rs.getString("dni")); // ✅ AGREGAR ESTA LÍNEA
                 usuario.setEmail(rs.getString("email"));
                 usuario.setPassword(rs.getString("password"));
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
                 usuario.setActivo(rs.getBoolean("activo"));
-                usuario.setNombreRol(rs.getString("nombre_rol")); // Nombre del rol
+                usuario.setNombreRol(rs.getString("nombre_rol"));
                 return usuario;
             }
         } catch (SQLException e) {
@@ -274,13 +287,14 @@ public class UsuarioDAO {
      * quiere cambiar su password
      */
     public boolean actualizarUsuarioSinPassword(Usuario usuario) {
-        String sql = "UPDATE Usuarios SET nombre_completo=?, email=?, id_rol=?, activo=? WHERE id_usuario=?";
+        String sql = "UPDATE Usuarios SET nombre_completo=?, dni=?, email=?, id_rol=?, activo=?, fecha_actualizacion=NOW() WHERE id_usuario=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, usuario.getNombreCompleto());
-            stmt.setString(2, usuario.getEmail());
-            stmt.setInt(3, usuario.getIdRol());
-            stmt.setBoolean(4, usuario.isActivo());
-            stmt.setInt(5, usuario.getIdUsuario());
+            stmt.setString(2, usuario.getDni()); // ✅ AGREGAR DNI
+            stmt.setString(3, usuario.getEmail());
+            stmt.setInt(4, usuario.getIdRol());
+            stmt.setBoolean(5, usuario.isActivo());
+            stmt.setInt(6, usuario.getIdUsuario());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -421,6 +435,42 @@ public class UsuarioDAO {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Verifica si ya existe un usuario con ese DNI
+     */
+    public boolean existeDNI(String dni) {
+        String sql = "SELECT COUNT(*) as total FROM Usuarios WHERE dni = ?";
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, dni);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total") > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si existe un DNI, excluyendo un usuario específico Útil al
+     * editar (puede mantener su propio DNI)
+     */
+    public boolean existeDNIExceptoUsuario(String dni, int idUsuario) {
+        String sql = "SELECT COUNT(*) as total FROM Usuarios WHERE dni = ? AND id_usuario != ?";
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, dni);
+            stmt.setInt(2, idUsuario);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total") > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
 }

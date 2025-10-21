@@ -113,8 +113,12 @@ public class ProfesionalServlet extends HttpServlet {
             if (profesionales != null && !profesionales.isEmpty()) {
                 for (Profesional profesional : profesionales) {
                     if (profesional.getCodigoProfesional() == null || profesional.getCodigoProfesional().isEmpty()) {
+                        // ✅ CAMBIAR ESTA LÍNEA:
                         profesional.setCodigoProfesional(
-                                GeneradorCodigos.generarCodigoProfesional(profesional.getIdProfesional())
+                                GeneradorCodigos.generarCodigoProfesionalPorUsuario(
+                                        profesional.getIdUsuario(), // ✅ Usa idUsuario en lugar de idProfesional
+                                        profesional.getIdRol()
+                                )
                         );
                     }
                 }
@@ -170,6 +174,7 @@ public class ProfesionalServlet extends HttpServlet {
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String idRolParam = request.getParameter("idRol");
+            String dni = request.getParameter("dni"); // ✅ DNI es parte del usuario
 
             // ========== DATOS DEL PROFESIONAL ==========
             String idEspecialidadParam = request.getParameter("idEspecialidad");
@@ -181,6 +186,7 @@ public class ProfesionalServlet extends HttpServlet {
                     || email == null || email.trim().isEmpty()
                     || password == null || password.trim().isEmpty()
                     || idRolParam == null || idRolParam.trim().isEmpty()
+                    || dni == null || dni.trim().isEmpty() // ✅ Validar DNI como campo de usuario
                     || idEspecialidadParam == null || idEspecialidadParam.trim().isEmpty()
                     || numeroLicencia == null || numeroLicencia.trim().isEmpty()) {
 
@@ -193,6 +199,7 @@ public class ProfesionalServlet extends HttpServlet {
                 request.setAttribute("nombreCompleto", nombreCompleto);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRolParam);
+                request.setAttribute("dni", dni);
                 request.setAttribute("idEspecialidad", idEspecialidadParam);
                 request.setAttribute("numeroLicencia", numeroLicencia);
                 request.setAttribute("telefono", telefono);
@@ -205,17 +212,60 @@ public class ProfesionalServlet extends HttpServlet {
             int idRol = Integer.parseInt(idRolParam);
             int idEspecialidad = Integer.parseInt(idEspecialidadParam);
 
-            // Validar que el email no exista
-            if (usuarioDAO.existeEmail(email.trim())) {
+            // ========== VALIDAR FORMATO DEL DNI ==========
+            if (!dni.trim().matches("\\d{8}")) {
                 HttpSession session = request.getSession();
-                session.setAttribute("warning", "El email ya está registrado en el sistema");
+                session.setAttribute("warning", "El DNI debe contener exactamente 8 dígitos numéricos");
 
-                // Recargar formulario con datos ingresados
+                // Recargar formulario
                 List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
                 request.setAttribute("especialidades", especialidades);
                 request.setAttribute("nombreCompleto", nombreCompleto);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRol);
+                request.setAttribute("dni", dni);
+                request.setAttribute("idEspecialidad", idEspecialidad);
+                request.setAttribute("numeroLicencia", numeroLicencia);
+                request.setAttribute("telefono", telefono);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Profesional");
+                request.getRequestDispatcher("/admin/profesionales-form.jsp").forward(request, response);
+                return;
+            }
+
+            // ========== VALIDAR QUE EL DNI NO EXISTA (EN USUARIOS) ==========
+            if (profesionalDAO.existeDNI(dni.trim())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI ya está registrado en el sistema");
+
+                // Recargar formulario
+                List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
+                request.setAttribute("especialidades", especialidades);
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRol);
+                request.setAttribute("dni", dni);
+                request.setAttribute("idEspecialidad", idEspecialidad);
+                request.setAttribute("numeroLicencia", numeroLicencia);
+                request.setAttribute("telefono", telefono);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Profesional");
+                request.getRequestDispatcher("/admin/profesionales-form.jsp").forward(request, response);
+                return;
+            }
+
+            // Validar que el email no exista
+            if (usuarioDAO.existeEmail(email.trim())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El email ya está registrado en el sistema");
+
+                // Recargar formulario
+                List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
+                request.setAttribute("especialidades", especialidades);
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRol);
+                request.setAttribute("dni", dni);
                 request.setAttribute("idEspecialidad", idEspecialidad);
                 request.setAttribute("numeroLicencia", numeroLicencia);
                 request.setAttribute("telefono", telefono);
@@ -236,6 +286,7 @@ public class ProfesionalServlet extends HttpServlet {
                 request.setAttribute("nombreCompleto", nombreCompleto);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRol);
+                request.setAttribute("dni", dni);
                 request.setAttribute("idEspecialidad", idEspecialidad);
                 request.setAttribute("numeroLicencia", numeroLicencia);
                 request.setAttribute("telefono", telefono);
@@ -245,25 +296,27 @@ public class ProfesionalServlet extends HttpServlet {
                 return;
             }
 
-            // ========== PASO 1: CREAR USUARIO ==========
+            // ========== PASO 1: CREAR USUARIO CON DNI ==========
             Usuario usuario = new Usuario();
             usuario.setNombreCompleto(nombreCompleto.trim());
             usuario.setEmail(email.trim());
             usuario.setPassword(password); // TODO: Encriptar en producción
             usuario.setIdRol(idRol);
             usuario.setActivo(true);
+            usuario.setDni(dni.trim()); // ✅ GUARDAR DNI EN USUARIO
 
             HttpSession session = request.getSession();
 
             if (usuarioDAO.insertarUsuario(usuario)) {
                 // Usuario creado exitosamente, ahora crear el profesional
 
-                // ========== PASO 2: CREAR PROFESIONAL ==========
+                // ========== PASO 2: CREAR PROFESIONAL (SIN DNI) ==========
                 Profesional profesional = new Profesional();
-                profesional.setIdUsuario(usuario.getIdUsuario()); // ID generado automáticamente
+                profesional.setIdUsuario(usuario.getIdUsuario());
                 profesional.setIdEspecialidad(idEspecialidad);
                 profesional.setNumeroLicencia(numeroLicencia.trim());
                 profesional.setTelefono(telefono != null ? telefono.trim() : null);
+                // ❌ NO ASIGNAR DNI AQUÍ - Ya está en Usuario
 
                 if (profesionalDAO.insertarProfesional(profesional)) {
                     session.setAttribute("success", "Profesional creado exitosamente");
@@ -293,7 +346,7 @@ public class ProfesionalServlet extends HttpServlet {
     // ========== MOSTRAR FORMULARIO EDITAR ==========
     /**
      * Muestra el formulario para editar un profesional existente Solo permite
-     * editar datos profesionales (especialidad, licencia, teléfono)
+     * editar datos profesionales (especialidad, licencia, teléfono, dni)
      */
     private void mostrarFormularioEditar(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -352,6 +405,11 @@ public class ProfesionalServlet extends HttpServlet {
      * Actualiza solo los datos profesionales No modifica los datos del usuario
      * (nombre, email)
      */
+    // ========== ACTUALIZAR PROFESIONAL ==========
+    /**
+     * Actualiza solo los datos profesionales El DNI se actualiza en la tabla
+     * Usuarios, no en Profesionales
+     */
     private void actualizarProfesional(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -360,10 +418,12 @@ public class ProfesionalServlet extends HttpServlet {
             String idEspecialidadParam = request.getParameter("idEspecialidad");
             String numeroLicencia = request.getParameter("numeroLicencia");
             String telefono = request.getParameter("telefono");
+            String dni = request.getParameter("dni"); // ✅ DNI del usuario vinculado
 
             if (idProfesionalParam == null || idProfesionalParam.trim().isEmpty()
                     || idEspecialidadParam == null || idEspecialidadParam.trim().isEmpty()
-                    || numeroLicencia == null || numeroLicencia.trim().isEmpty()) {
+                    || numeroLicencia == null || numeroLicencia.trim().isEmpty()
+                    || dni == null || dni.trim().isEmpty()) {
 
                 HttpSession session = request.getSession();
                 session.setAttribute("error", "Debe completar todos los campos obligatorios");
@@ -373,6 +433,35 @@ public class ProfesionalServlet extends HttpServlet {
 
             int idProfesional = Integer.parseInt(idProfesionalParam);
             int idEspecialidad = Integer.parseInt(idEspecialidadParam);
+
+            // ========== VALIDAR FORMATO DEL DNI ==========
+            if (!dni.trim().matches("\\d{8}")) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI debe contener exactamente 8 dígitos numéricos");
+                response.sendRedirect(request.getContextPath() + "/ProfesionalServlet?accion=editar&id=" + idProfesional);
+                return;
+            }
+
+            // ========== VALIDAR QUE EL DNI NO ESTÉ USADO POR OTRO USUARIO ==========
+            if (profesionalDAO.existeDNIExceptoProfesional(dni.trim(), idProfesional)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI ya está registrado por otro usuario");
+
+                // Recargar formulario
+                Profesional profesional = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
+                profesional.setIdEspecialidad(idEspecialidad);
+                profesional.setNumeroLicencia(numeroLicencia);
+                profesional.setTelefono(telefono);
+                profesional.setDni(dni);
+
+                List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
+                request.setAttribute("especialidades", especialidades);
+                request.setAttribute("profesional", profesional);
+                request.setAttribute("accion", "actualizar");
+                request.setAttribute("tituloFormulario", "Editar Profesional");
+                request.getRequestDispatcher("/admin/profesionales-form.jsp").forward(request, response);
+                return;
+            }
 
             // Validar que la licencia no esté usada por otro profesional
             if (profesionalDAO.existeLicenciaExceptoProfesional(numeroLicencia.trim(), idProfesional)) {
@@ -384,6 +473,7 @@ public class ProfesionalServlet extends HttpServlet {
                 profesional.setIdEspecialidad(idEspecialidad);
                 profesional.setNumeroLicencia(numeroLicencia);
                 profesional.setTelefono(telefono);
+                profesional.setDni(dni);
 
                 List<Especialidad> especialidades = especialidadDAO.listarEspecialidades();
                 request.setAttribute("especialidades", especialidades);
@@ -394,20 +484,50 @@ public class ProfesionalServlet extends HttpServlet {
                 return;
             }
 
-            // Crear objeto Profesional con los datos actualizados
+            // ========== OBTENER EL PROFESIONAL ACTUAL PARA SABER SU ID_USUARIO ==========
+            Profesional profesionalActual = profesionalDAO.buscarProfesionalPorIdConDetalles(idProfesional);
+
+            if (profesionalActual == null) {
+                HttpSession session = request.getSession();
+                session.setAttribute("error", "Profesional no encontrado");
+                response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");
+                return;
+            }
+
+            HttpSession session = request.getSession();
+            boolean exitoTotal = true;
+
+            // ========== PASO 1: ACTUALIZAR DNI EN LA TABLA USUARIOS ==========
+            Usuario usuario = usuarioDAO.buscarUsuarioPorId(profesionalActual.getIdUsuario());
+
+            if (usuario != null) {
+                // Solo actualizar si el DNI cambió
+                if (!dni.trim().equals(usuario.getDni())) {
+                    usuario.setDni(dni.trim());
+                    if (!usuarioDAO.actualizarUsuario(usuario)) {
+                        session.setAttribute("warning", "El profesional se actualizó pero hubo un problema al actualizar el DNI");
+                        exitoTotal = false;
+                    }
+                }
+            } else {
+                session.setAttribute("warning", "No se pudo actualizar el DNI del usuario");
+                exitoTotal = false;
+            }
+
+            // ========== PASO 2: ACTUALIZAR DATOS PROFESIONALES ==========
             Profesional profesional = new Profesional();
             profesional.setIdProfesional(idProfesional);
             profesional.setIdEspecialidad(idEspecialidad);
             profesional.setNumeroLicencia(numeroLicencia.trim());
             profesional.setTelefono(telefono != null ? telefono.trim() : null);
+            // ❌ NO asignar DNI aquí - se actualiza en Usuario
 
-            HttpSession session = request.getSession();
-
-            // Actualizar solo datos profesionales (no usuario)
             if (profesionalDAO.actualizarDatosProfesional(profesional)) {
-                session.setAttribute("success", "Profesional actualizado exitosamente");
+                if (exitoTotal) {
+                    session.setAttribute("success", "Profesional actualizado exitosamente");
+                }
             } else {
-                session.setAttribute("error", "No se pudo actualizar el profesional");
+                session.setAttribute("error", "No se pudo actualizar los datos profesionales");
             }
 
             response.sendRedirect(request.getContextPath() + "/ProfesionalServlet");

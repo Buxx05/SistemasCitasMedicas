@@ -74,6 +74,33 @@
                                 </div>
                             </div>
 
+                            <!-- ✅ DNI (NUEVO CAMPO) -->
+                            <div class="form-group">
+                                <label for="dni">
+                                    DNI <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-id-card-alt"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="dni" 
+                                           name="dni" 
+                                           value="${accion == 'actualizar' && usuario != null ? usuario.dni : ''}" 
+                                           placeholder="Ej: 12345678"
+                                           maxlength="8"
+                                           pattern="[0-9]{8}"
+                                           required>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i>
+                                    Documento Nacional de Identidad (8 dígitos numéricos)
+                                </small>
+                            </div>
+
                             <!-- Email -->
                             <div class="form-group">
                                 <label for="email">
@@ -147,7 +174,6 @@
                                     </div>
                                     <select class="form-control" id="idRol" name="idRol" required>
                                         <option value="">Seleccione un rol</option>
-                                        <!-- ⬇️ CAMBIO: Usar roles dinámicos desde la base de datos -->
                                         <c:forEach var="rol" items="${roles}">
                                             <option value="${rol.idRol}" 
                                                     ${accion == 'actualizar' && usuario != null && usuario.idRol == rol.idRol ? 'selected' : ''}>
@@ -219,12 +245,21 @@
             }
         });
 
-        // Validación de contraseña (mínimo 6 caracteres)
+        // Validación del formulario
         $('#usuarioForm').submit(function (e) {
             const password = $('#password').val();
             const accion = $('input[name="accion"]').val();
 
-            // Solo validar si es crear o si se está cambiando la contraseña
+            // ✅ VALIDAR DNI (8 dígitos numéricos)
+            const dni = $('#dni').val().trim();
+            if (!/^\d{8}$/.test(dni)) {
+                e.preventDefault();
+                alert('El DNI debe contener exactamente 8 dígitos numéricos');
+                $('#dni').focus();
+                return false;
+            }
+
+            // Validar contraseña solo si es crear o si se está cambiando
             if (accion === 'crear' || (accion === 'actualizar' && password.length > 0)) {
                 if (password.length < 6) {
                     e.preventDefault();

@@ -253,6 +253,34 @@
                             </div>
 
                             <div class="row">
+                                <!-- DNI -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="dni">
+                                            DNI <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text">
+                                                    <i class="fas fa-id-card-alt"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="dni" 
+                                                   name="dni" 
+                                                   value="${accion == 'actualizar' && profesional != null ? profesional.dni : (accion == 'crear' && param.dni != null ? param.dni : '')}" 
+                                                   placeholder="Ej: 12345678"
+                                                   maxlength="8"
+                                                   pattern="[0-9]{8}"
+                                                   required>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            Documento Nacional de Identidad (8 dígitos)
+                                        </small>
+                                    </div>
+                                </div>
+
                                 <!-- Teléfono -->
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -317,7 +345,7 @@
             }
         });
 
-        // Validación de contraseña (mínimo 6 caracteres)
+        // Validación del formulario
         $('#profesionalForm').submit(function (e) {
             const accion = $('input[name="accion"]').val();
 
@@ -330,6 +358,15 @@
                     $('#password').focus();
                     return false;
                 }
+            }
+
+            // ✅ VALIDAR DNI (8 dígitos numéricos)
+            const dni = $('#dni').val().trim();
+            if (!/^\d{8}$/.test(dni)) {
+                e.preventDefault();
+                alert('El DNI debe contener exactamente 8 dígitos numéricos');
+                $('#dni').focus();
+                return false;
             }
 
             // Validar número de licencia

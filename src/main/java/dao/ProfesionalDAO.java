@@ -9,13 +9,17 @@ import util.GeneradorCodigos;
 
 public class ProfesionalDAO {
 
+    // ========== INSERTAR PROFESIONAL ==========
     public boolean insertarProfesional(Profesional profesional) {
+        // ❌ QUITAR 'dni' del SQL - El DNI ya está en la tabla Usuarios
         String sql = "INSERT INTO Profesionales (id_usuario, id_especialidad, numero_licencia, telefono) VALUES (?, ?, ?, ?)";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, profesional.getIdUsuario());
             stmt.setInt(2, profesional.getIdEspecialidad());
             stmt.setString(3, profesional.getNumeroLicencia());
             stmt.setString(4, profesional.getTelefono());
+            // ❌ NO incluir DNI aquí
+
             int affectedRows = stmt.executeUpdate();
             if (affectedRows > 0) {
                 ResultSet generatedKeys = stmt.getGeneratedKeys();
@@ -30,9 +34,13 @@ public class ProfesionalDAO {
         return false;
     }
 
+    // ========== LISTAR PROFESIONALES ==========
     public List<Profesional> listarProfesionales() {
         List<Profesional> profesionales = new ArrayList<>();
-        String sql = "SELECT * FROM Profesionales ORDER BY id_profesional";
+        // ✅ AGREGAR JOIN con Usuarios para obtener el DNI
+        String sql = "SELECT p.*, u.dni FROM Profesionales p "
+                + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
+                + "ORDER BY p.id_profesional";
         try (Connection conn = ConexionDB.getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 Profesional profesional = new Profesional();
@@ -41,11 +49,9 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
-
-                // ✅ AGREGAR estos campos
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
-
                 profesionales.add(profesional);
             }
         } catch (SQLException e) {
@@ -54,10 +60,13 @@ public class ProfesionalDAO {
         return profesionales;
     }
 
+    // ========== BUSCAR PROFESIONAL POR ID ==========
     public Profesional buscarProfesionalPorId(int idProfesional) {
-        String sql = "SELECT * FROM Profesionales WHERE id_profesional=?";
+        // ✅ AGREGAR JOIN con Usuarios para obtener el DNI
+        String sql = "SELECT p.*, u.dni FROM Profesionales p "
+                + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
+                + "WHERE p.id_profesional=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, idProfesional);
             ResultSet rs = stmt.executeQuery();
 
@@ -68,11 +77,9 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
-
-                // ✅ AGREGAR mapeo de nuevos campos
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
-
                 return profesional;
             }
         } catch (SQLException e) {
@@ -81,7 +88,9 @@ public class ProfesionalDAO {
         return null;
     }
 
+    // ========== ACTUALIZAR PROFESIONAL ==========
     public boolean actualizarProfesional(Profesional profesional) {
+        // ❌ QUITAR 'dni=?' del SQL - El DNI se actualiza en la tabla Usuarios
         String sql = "UPDATE Profesionales SET id_usuario=?, id_especialidad=?, numero_licencia=?, telefono=? WHERE id_profesional=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, profesional.getIdUsuario());
@@ -96,6 +105,7 @@ public class ProfesionalDAO {
         }
     }
 
+    // ========== ELIMINAR PROFESIONAL ==========
     public boolean eliminarProfesional(int idProfesional) {
         String sql = "DELETE FROM Profesionales WHERE id_profesional=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -108,9 +118,6 @@ public class ProfesionalDAO {
     }
 
     // ========== MÉTODOS PARA DASHBOARD ADMIN ==========
-    /**
-     * Cuenta el total de profesionales registrados
-     */
     public int contarProfesionales() {
         int total = 0;
         String sql = "SELECT COUNT(*) AS total FROM Profesionales";
@@ -124,9 +131,6 @@ public class ProfesionalDAO {
         return total;
     }
 
-    /**
-     * Cuenta profesionales médicos (rol 2 del usuario vinculado)
-     */
     public int contarProfesionalesMedicos() {
         int total = 0;
         String sql = "SELECT COUNT(*) AS total FROM Profesionales p "
@@ -142,9 +146,6 @@ public class ProfesionalDAO {
         return total;
     }
 
-    /**
-     * Cuenta profesionales por especialidad
-     */
     public int contarProfesionalesPorEspecialidad(int idEspecialidad) {
         int total = 0;
         String sql = "SELECT COUNT(*) AS total FROM Profesionales WHERE id_especialidad = ?";
@@ -161,13 +162,10 @@ public class ProfesionalDAO {
     }
 
     // ========== CONSULTAS MEJORADAS CON JOIN ==========
-    /**
-     * Lista todos los profesionales con información completa Incluye: nombre
-     * usuario, email, especialidad, rol, estado
-     */
     public List<Profesional> listarProfesionalesConDetalles() {
         List<Profesional> profesionales = new ArrayList<>();
-        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, "
+        // ✅ AGREGAR u.dni en el SELECT
+        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, u.dni, "
                 + "e.nombre AS nombre_especialidad, r.nombre AS nombre_rol "
                 + "FROM Profesionales p "
                 + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
@@ -183,25 +181,24 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
 
                 // Datos del usuario
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
-                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
+                profesional.setIdRol(rs.getInt("id_rol"));
                 profesional.setActivo(rs.getBoolean("activo"));
 
                 // Datos adicionales
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
-
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
 
-                // ⬇️ MODIFICAR ESTA LÍNEA - Ahora usa idRol
                 profesional.setCodigoProfesional(
-                        GeneradorCodigos.generarCodigoProfesional(
-                                profesional.getIdProfesional(),
-                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        GeneradorCodigos.generarCodigoProfesionalPorUsuario(
+                                profesional.getIdUsuario(), // ✅ Usa idUsuario
+                                profesional.getIdRol()
                         )
                 );
 
@@ -213,11 +210,9 @@ public class ProfesionalDAO {
         return profesionales;
     }
 
-    /**
-     * Busca un profesional por ID con información completa
-     */
     public Profesional buscarProfesionalPorIdConDetalles(int idProfesional) {
-        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, "
+        // ✅ AGREGAR u.dni en el SELECT
+        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, u.dni, "
                 + "e.nombre AS nombre_especialidad, r.nombre AS nombre_rol "
                 + "FROM Profesionales p "
                 + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
@@ -226,7 +221,6 @@ public class ProfesionalDAO {
                 + "WHERE p.id_profesional = ?";
 
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, idProfesional);
             ResultSet rs = stmt.executeQuery();
 
@@ -237,25 +231,24 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
-
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
 
                 // Datos del usuario
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
-                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
+                profesional.setIdRol(rs.getInt("id_rol"));
                 profesional.setActivo(rs.getBoolean("activo"));
 
                 // Datos adicionales
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
 
-                // ⬇️ MODIFICAR ESTA LÍNEA
                 profesional.setCodigoProfesional(
-                        GeneradorCodigos.generarCodigoProfesional(
-                                profesional.getIdProfesional(),
-                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        GeneradorCodigos.generarCodigoProfesionalPorUsuario(
+                                profesional.getIdUsuario(), // ✅ Usa idUsuario
+                                profesional.getIdRol()
                         )
                 );
 
@@ -268,12 +261,11 @@ public class ProfesionalDAO {
         return null;
     }
 
-    /**
-     * Busca un profesional por el ID del usuario Útil para verificar si un
-     * usuario ya es profesional
-     */
     public Profesional buscarProfesionalPorUsuario(int idUsuario) {
-        String sql = "SELECT * FROM Profesionales WHERE id_usuario = ?";
+        // ✅ AGREGAR JOIN para obtener DNI
+        String sql = "SELECT p.*, u.dni FROM Profesionales p "
+                + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
+                + "WHERE p.id_usuario = ?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, idUsuario);
             ResultSet rs = stmt.executeQuery();
@@ -285,11 +277,9 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
-
-                // ✅ AGREGAR estos campos
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
-
                 return profesional;
             }
         } catch (SQLException e) {
@@ -298,11 +288,7 @@ public class ProfesionalDAO {
         return null;
     }
 
-// ========== VALIDACIONES ==========
-    /**
-     * Verifica si ya existe un profesional con ese número de licencia Útil al
-     * crear un nuevo profesional
-     */
+    // ========== VALIDACIONES ==========
     public boolean existeLicencia(String numeroLicencia) {
         String sql = "SELECT COUNT(*) as total FROM Profesionales WHERE numero_licencia = ?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -317,10 +303,6 @@ public class ProfesionalDAO {
         return false;
     }
 
-    /**
-     * Verifica si existe una licencia, excluyendo un profesional específico
-     * Útil al editar (puede mantener su propia licencia)
-     */
     public boolean existeLicenciaExceptoProfesional(String numeroLicencia, int idProfesional) {
         String sql = "SELECT COUNT(*) as total FROM Profesionales "
                 + "WHERE numero_licencia = ? AND id_profesional != ?";
@@ -337,10 +319,6 @@ public class ProfesionalDAO {
         return false;
     }
 
-    /**
-     * Verifica si un usuario ya está registrado como profesional Evita
-     * duplicados al crear
-     */
     public boolean usuarioEsProfesional(int idUsuario) {
         String sql = "SELECT COUNT(*) as total FROM Profesionales WHERE id_usuario = ?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -355,13 +333,49 @@ public class ProfesionalDAO {
         return false;
     }
 
-// ========== ACTUALIZACIÓN OPTIMIZADA ==========
+    // ========== VALIDACIONES DE DNI (CAMBIAR A TABLA USUARIOS) ==========
     /**
-     * Actualiza solo los datos profesionales (sin cambiar el usuario vinculado)
-     * Para formularios de edición donde solo se cambia especialidad, licencia,
-     * teléfono
+     * Verifica si ya existe un usuario con ese DNI ✅ Busca en la tabla
+     * Usuarios, no en Profesionales
      */
+    public boolean existeDNI(String dni) {
+        String sql = "SELECT COUNT(*) as total FROM Usuarios WHERE dni = ?";
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, dni);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total") > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si existe un DNI, excluyendo un usuario específico ✅ Busca en la
+     * tabla Usuarios, no en Profesionales
+     */
+    public boolean existeDNIExceptoProfesional(String dni, int idProfesional) {
+        String sql = "SELECT COUNT(*) as total FROM Usuarios u "
+                + "INNER JOIN Profesionales p ON u.id_usuario = p.id_usuario "
+                + "WHERE u.dni = ? AND p.id_profesional != ?";
+        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, dni);
+            stmt.setInt(2, idProfesional);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("total") > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // ========== ACTUALIZACIÓN OPTIMIZADA ==========
     public boolean actualizarDatosProfesional(Profesional profesional) {
+        // ❌ QUITAR 'dni=?' - El DNI se actualiza en UsuarioDAO
         String sql = "UPDATE Profesionales SET id_especialidad=?, numero_licencia=?, telefono=? "
                 + "WHERE id_profesional=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -376,13 +390,11 @@ public class ProfesionalDAO {
         }
     }
 
-// ========== CONSULTAS ADICIONALES ==========
-    /**
-     * Lista profesionales activos (usuarios activos)
-     */
+    // ========== CONSULTAS ADICIONALES ==========
     public List<Profesional> listarProfesionalesActivos() {
         List<Profesional> profesionales = new ArrayList<>();
-        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, "
+        // ✅ AGREGAR u.dni en el SELECT
+        String sql = "SELECT p.*, u.nombre_completo, u.email, u.id_rol, u.activo, u.dni, "
                 + "e.nombre AS nombre_especialidad, r.nombre AS nombre_rol "
                 + "FROM Profesionales p "
                 + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
@@ -399,20 +411,20 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
-                profesional.setIdRol(rs.getInt("id_rol")); // ⬅️ AGREGAR ESTO
+                profesional.setIdRol(rs.getInt("id_rol"));
                 profesional.setActivo(rs.getBoolean("activo"));
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
                 profesional.setNombreRol(rs.getString("nombre_rol"));
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
 
-                // ⬇️ MODIFICAR ESTA LÍNEA
                 profesional.setCodigoProfesional(
-                        GeneradorCodigos.generarCodigoProfesional(
-                                profesional.getIdProfesional(),
-                                profesional.getIdRol() // ⬅️ AGREGAR idRol
+                        GeneradorCodigos.generarCodigoProfesionalPorUsuario(
+                                profesional.getIdUsuario(), // ✅ Usa idUsuario
+                                profesional.getIdRol()
                         )
                 );
 
@@ -424,12 +436,10 @@ public class ProfesionalDAO {
         return profesionales;
     }
 
-    /**
-     * Lista profesionales por especialidad
-     */
     public List<Profesional> listarProfesionalesPorEspecialidad(int idEspecialidad) {
         List<Profesional> profesionales = new ArrayList<>();
-        String sql = "SELECT p.*, u.nombre_completo, u.email, u.activo, "
+        // ✅ AGREGAR u.dni en el SELECT
+        String sql = "SELECT p.*, u.nombre_completo, u.email, u.activo, u.dni, "
                 + "e.nombre AS nombre_especialidad "
                 + "FROM Profesionales p "
                 + "INNER JOIN Usuarios u ON p.id_usuario = u.id_usuario "
@@ -448,11 +458,11 @@ public class ProfesionalDAO {
                 profesional.setIdEspecialidad(rs.getInt("id_especialidad"));
                 profesional.setNumeroLicencia(rs.getString("numero_licencia"));
                 profesional.setTelefono(rs.getString("telefono"));
+                profesional.setDni(rs.getString("dni")); // ✅ Leer desde usuarios
                 profesional.setNombreUsuario(rs.getString("nombre_completo"));
                 profesional.setEmailUsuario(rs.getString("email"));
                 profesional.setActivo(rs.getBoolean("activo"));
                 profesional.setNombreEspecialidad(rs.getString("nombre_especialidad"));
-                // ✅ En cada while (rs.next()) de estos métodos, agregar:
                 profesional.setBiografiaProfesional(rs.getString("biografia_profesional"));
                 profesional.setAniosExperiencia(rs.getInt("anios_experiencia"));
 
@@ -464,9 +474,6 @@ public class ProfesionalDAO {
         return profesionales;
     }
 
-    /**
-     * Cuenta profesionales no médicos (rol 3)
-     */
     public int contarProfesionalesNoMedicos() {
         int total = 0;
         String sql = "SELECT COUNT(*) AS total FROM Profesionales p "
@@ -482,9 +489,6 @@ public class ProfesionalDAO {
         return total;
     }
 
-    /**
-     * Obtiene el ID del profesional a partir del ID del usuario
-     */
     public int obtenerIdProfesionalPorIdUsuario(int idUsuario) {
         String sql = "SELECT id_profesional FROM Profesionales WHERE id_usuario = ?";
 
@@ -497,14 +501,11 @@ public class ProfesionalDAO {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return 0; // Retorna 0 si no encuentra
+        return 0;
     }
 
-    /**
-     * Actualiza TODOS los datos del profesional incluyendo biografía y
-     * experiencia Útil para formularios de perfil completo
-     */
     public boolean actualizarProfesionalCompleto(Profesional profesional) {
+        // ❌ QUITAR 'dni=?' - El DNI se actualiza en UsuarioDAO
         String sql = "UPDATE Profesionales SET id_especialidad=?, numero_licencia=?, telefono=?, "
                 + "biografia_profesional=?, anios_experiencia=? WHERE id_profesional=?";
         try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -517,8 +518,7 @@ public class ProfesionalDAO {
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
-            return false;
         }
+        return false;
     }
-
 }

@@ -47,6 +47,7 @@
                             <tr>
                                 <th>Código</th>
                                 <th>Nombre Completo</th>
+                                <th>DNI</th> <!-- ← AGREGAR COLUMNA -->
                                 <th>Email</th>
                                 <th>Especialidad</th>
                                 <th>Licencia</th>
@@ -72,6 +73,21 @@
                                             <td>
                                                 <i class="fas fa-user-md mr-2"></i>
                                                 ${prof.nombreUsuario}
+                                            </td>
+
+                                            <!-- DNI ← AGREGAR ESTA CELDA -->
+                                            <td>
+                                                <c:choose>
+                                                    <c:when test="${not empty prof.dni}">
+                                                        <i class="fas fa-id-card-alt mr-1"></i>
+                                                        ${prof.dni}
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <span class="text-muted">
+                                                            <i class="fas fa-minus"></i>
+                                                        </span>
+                                                    </c:otherwise>
+                                                </c:choose>
                                             </td>
 
                                             <!-- EMAIL -->
@@ -177,7 +193,7 @@
                                 </c:when>
                                 <c:otherwise>
                                     <tr>
-                                        <td colspan="9" class="text-center py-4">
+                                        <td colspan="10" class="text-center py-4">  <!-- ✅ CORREGIDO: 10 columnas -->
                                             <i class="fas fa-info-circle fa-2x mb-3 text-muted"></i>
                                             <p class="text-muted">No hay profesionales registrados en el sistema</p>
                                             <a href="${pageContext.request.contextPath}/ProfesionalServlet?accion=nuevo" 
@@ -236,11 +252,11 @@
                                                                             "language": {
                                                                                 "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
                                                                             },
-                                                                            "order": [[0, "asc"]], // Ordenar por código ascendente
+                                                                            "order": [[0, "asc"]],
                                                                             "pageLength": 10,
                                                                             "responsive": true,
                                                                             "columnDefs": [
-                                                                                {"orderable": false, "targets": 8} // Deshabilitar ordenamiento en columna Acciones
+                                                                                {"orderable": false, "targets": 9} // ✅ CORREGIDO: columna 9 (Acciones)
                                                                             ]
                                                                         });
                                                                     } else {

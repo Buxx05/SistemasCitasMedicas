@@ -146,12 +146,14 @@ public class UsuarioServlet extends HttpServlet {
         try {
             // Obtener datos del formulario
             String nombreCompleto = request.getParameter("nombreCompleto");
+            String dni = request.getParameter("dni"); // ✅ AGREGAR CAPTURA DEL DNI
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String idRolParam = request.getParameter("idRol");
 
             // Validar campos obligatorios
             if (nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || dni == null || dni.trim().isEmpty() // ✅ VALIDAR DNI
                     || email == null || email.trim().isEmpty()
                     || password == null || password.trim().isEmpty()
                     || idRolParam == null || idRolParam.trim().isEmpty()) {
@@ -161,6 +163,7 @@ public class UsuarioServlet extends HttpServlet {
 
                 // Mantener los datos del formulario
                 request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni); // ✅ INCLUIR DNI
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRolParam);
                 List<Rol> roles = rolDAO.listarRoles();
@@ -173,12 +176,47 @@ public class UsuarioServlet extends HttpServlet {
 
             int idRol = Integer.parseInt(idRolParam);
 
+            // ✅ VALIDAR FORMATO DEL DNI (8 dígitos)
+            if (!dni.trim().matches("\\d{8}")) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI debe contener exactamente 8 dígitos numéricos");
+
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRol);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Usuario");
+                request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+                return;
+            }
+
             // Validar longitud mínima de contraseña
             if (password.length() < 6) {
                 HttpSession session = request.getSession();
                 session.setAttribute("warning", "La contraseña debe tener al menos 6 caracteres");
 
                 request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni);
+                request.setAttribute("email", email);
+                request.setAttribute("idRol", idRol);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
+                request.setAttribute("accion", "crear");
+                request.setAttribute("tituloFormulario", "Nuevo Usuario");
+                request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
+                return;
+            }
+
+            // ✅ VALIDAR QUE EL DNI NO EXISTA
+            if (usuarioDAO.existeDNI(dni.trim())) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI ya está registrado en el sistema");
+
+                request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRol);
                 List<Rol> roles = rolDAO.listarRoles();
@@ -196,6 +234,7 @@ public class UsuarioServlet extends HttpServlet {
 
                 // Mantener los datos del formulario
                 request.setAttribute("nombreCompleto", nombreCompleto);
+                request.setAttribute("dni", dni);
                 request.setAttribute("email", email);
                 request.setAttribute("idRol", idRol);
                 List<Rol> roles = rolDAO.listarRoles();
@@ -209,6 +248,7 @@ public class UsuarioServlet extends HttpServlet {
             // Crear objeto Usuario
             Usuario usuario = new Usuario();
             usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setDni(dni.trim()); // ✅ ASIGNAR DNI
             usuario.setEmail(email.trim());
             usuario.setPassword(password); // TODO: Encriptar en producción
             usuario.setIdRol(idRol);
@@ -283,8 +323,8 @@ public class UsuarioServlet extends HttpServlet {
 
     // ========== ACTUALIZAR USUARIO ==========
     /**
-     * Actualiza un usuario con validación de email
-     * Permite cambio opcional de contraseña
+     * Actualiza un usuario con validación de email Permite cambio opcional de
+     * contraseña
      */
     private void actualizarUsuario(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -293,6 +333,7 @@ public class UsuarioServlet extends HttpServlet {
             // Obtener datos del formulario
             String idUsuarioParam = request.getParameter("idUsuario");
             String nombreCompleto = request.getParameter("nombreCompleto");
+            String dni = request.getParameter("dni"); // ✅ AGREGAR CAPTURA DEL DNI
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String idRolParam = request.getParameter("idRol");
@@ -300,6 +341,7 @@ public class UsuarioServlet extends HttpServlet {
 
             if (idUsuarioParam == null || idUsuarioParam.trim().isEmpty()
                     || nombreCompleto == null || nombreCompleto.trim().isEmpty()
+                    || dni == null || dni.trim().isEmpty() // ✅ VALIDAR DNI
                     || email == null || email.trim().isEmpty()
                     || idRolParam == null || idRolParam.trim().isEmpty()) {
 
@@ -313,11 +355,39 @@ public class UsuarioServlet extends HttpServlet {
             int idRol = Integer.parseInt(idRolParam);
             boolean activo = activoParam != null && (activoParam.equals("true") || activoParam.equals("on"));
 
+            // ✅ VALIDAR FORMATO DEL DNI
+            if (!dni.trim().matches("\\d{8}")) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI debe contener exactamente 8 dígitos numéricos");
+                response.sendRedirect(request.getContextPath() + "/UsuarioServlet?accion=editar&id=" + idUsuario);
+                return;
+            }
+
             // Validar longitud de contraseña si se proporciona
             if (password != null && !password.trim().isEmpty() && password.length() < 6) {
                 HttpSession session = request.getSession();
                 session.setAttribute("warning", "La contraseña debe tener al menos 6 caracteres");
                 response.sendRedirect(request.getContextPath() + "/UsuarioServlet?accion=editar&id=" + idUsuario);
+                return;
+            }
+
+            // ✅ VALIDAR QUE EL DNI NO ESTÉ USADO POR OTRO USUARIO
+            if (usuarioDAO.existeDNIExceptoUsuario(dni.trim(), idUsuario)) {
+                HttpSession session = request.getSession();
+                session.setAttribute("warning", "El DNI ya está registrado por otro usuario");
+
+                Usuario usuario = usuarioDAO.buscarUsuarioPorId(idUsuario);
+                usuario.setNombreCompleto(nombreCompleto);
+                usuario.setDni(dni);
+                usuario.setEmail(email);
+                usuario.setIdRol(idRol);
+                usuario.setActivo(activo);
+                List<Rol> roles = rolDAO.listarRoles();
+                request.setAttribute("roles", roles);
+                request.setAttribute("usuario", usuario);
+                request.setAttribute("accion", "actualizar");
+                request.setAttribute("tituloFormulario", "Editar Usuario");
+                request.getRequestDispatcher("/admin/usuarios-form.jsp").forward(request, response);
                 return;
             }
 
@@ -328,6 +398,7 @@ public class UsuarioServlet extends HttpServlet {
 
                 Usuario usuario = usuarioDAO.buscarUsuarioPorId(idUsuario);
                 usuario.setNombreCompleto(nombreCompleto);
+                usuario.setDni(dni);
                 usuario.setEmail(email);
                 usuario.setIdRol(idRol);
                 usuario.setActivo(activo);
@@ -344,6 +415,7 @@ public class UsuarioServlet extends HttpServlet {
             Usuario usuario = new Usuario();
             usuario.setIdUsuario(idUsuario);
             usuario.setNombreCompleto(nombreCompleto.trim());
+            usuario.setDni(dni.trim()); // ✅ ASIGNAR DNI
             usuario.setEmail(email.trim());
             usuario.setIdRol(idRol);
             usuario.setActivo(activo);
@@ -381,8 +453,8 @@ public class UsuarioServlet extends HttpServlet {
 
     // ========== ELIMINAR USUARIO ==========
     /**
-     * Elimina un usuario con validación
-     * No permite eliminar el usuario actual de la sesión
+     * Elimina un usuario con validación No permite eliminar el usuario actual
+     * de la sesión
      */
     private void eliminarUsuario(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -425,7 +497,7 @@ public class UsuarioServlet extends HttpServlet {
         } catch (Exception e) {
             e.printStackTrace();
             HttpSession session = request.getSession();
-            
+
             // Mensaje específico para errores de integridad
             String mensaje = e.getMessage();
             if (mensaje != null && (mensaje.contains("foreign key constraint") || mensaje.contains("constraint"))) {
@@ -433,7 +505,7 @@ public class UsuarioServlet extends HttpServlet {
             } else {
                 session.setAttribute("error", "Error al eliminar el usuario: " + mensaje);
             }
-            
+
             response.sendRedirect(request.getContextPath() + "/UsuarioServlet");
         }
     }

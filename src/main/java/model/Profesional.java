@@ -18,6 +18,7 @@ public class Profesional {
     // ✅ AGREGAR estos atributos
     private String biografiaProfesional;
     private int aniosExperiencia;
+    private String dni;
 
     private String codigoProfesional;
     private int idRol;
@@ -147,6 +148,14 @@ public class Profesional {
 
     public void setIdRol(int idRol) {
         this.idRol = idRol;
+    }
+
+    public String getDni() {
+        return dni;
+    }
+
+    public void setDni(String dni) {
+        this.dni = dni;
     }
 
 }
