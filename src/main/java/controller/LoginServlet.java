@@ -9,7 +9,6 @@ import java.io.IOException;
 
 @WebServlet("/LoginServlet")
 public class LoginServlet extends HttpServlet {
-
     private UsuarioDAO usuarioDAO;
 
     @Override
@@ -20,20 +19,26 @@ public class LoginServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
+        
         String email = request.getParameter("email");
         String password = request.getParameter("password");
+        String rolSeleccionado = request.getParameter("rol");
 
         // Validación de campos vacíos
         if (email == null || email.trim().isEmpty()
-                || password == null || password.trim().isEmpty()) {
-            request.setAttribute("warning", "Por favor, completa todos los campos");
+                || password == null || password.trim().isEmpty()
+                || rolSeleccionado == null || rolSeleccionado.trim().isEmpty()) {
+            request.setAttribute("error", "Por favor, completa todos los campos");
             request.getRequestDispatcher("/login.jsp").forward(request, response);
             return;
         }
 
         try {
-            Usuario usuario = usuarioDAO.autenticar(email.trim(), password);
+            // Convertir el rol a entero
+            int idRol = Integer.parseInt(rolSeleccionado);
+            
+            // Autenticar con email, password y rol
+            Usuario usuario = usuarioDAO.autenticar(email.trim(), password, idRol);
 
             if (usuario != null) {
                 // Verificar que el usuario esté activo
@@ -57,15 +62,12 @@ public class LoginServlet extends HttpServlet {
                     case 1: // Administrador
                         response.sendRedirect(request.getContextPath() + "/DashboardAdminServlet");
                         break;
-
                     case 2: // Especialista Médico
                         response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
                         break;
-
                     case 3: // Especialista No Médico
                         response.sendRedirect(request.getContextPath() + "/DashboardProfesionalServlet");
                         break;
-
                     default:
                         // Rol no reconocido
                         session.invalidate();
@@ -73,11 +75,13 @@ public class LoginServlet extends HttpServlet {
                         request.getRequestDispatcher("/login.jsp").forward(request, response);
                 }
             } else {
-                // Credenciales incorrectas
-                request.setAttribute("error", "Email o contraseña incorrectos");
+                // Credenciales o rol incorrectos
+                request.setAttribute("error", "Email, contraseña o rol incorrectos. Verifica tus datos.");
                 request.getRequestDispatcher("/login.jsp").forward(request, response);
             }
-
+        } catch (NumberFormatException e) {
+            request.setAttribute("error", "Rol inválido. Por favor, selecciona un rol válido.");
+            request.getRequestDispatcher("/login.jsp").forward(request, response);
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("error", "Error al procesar el inicio de sesión. Por favor, intenta nuevamente.");

@@ -106,18 +106,17 @@
             }
 
             .brand-header .icon-wrapper {
-                display: flex; /* ✅ Cambiar de inline-block a flex */
+                display: flex;
                 width: 90px;
                 height: 90px;
                 background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
                 border-radius: 50%;
                 align-items: center;
                 justify-content: center;
-                margin: 0 auto 1rem auto; /* ✅ Agregar margin: 0 auto */
+                margin: 0 auto 1rem auto;
                 box-shadow: 0 0.5rem 1.5rem rgba(13, 110, 253, 0.4);
                 animation: pulse 2s ease-in-out infinite;
             }
-
 
             @keyframes pulse {
                 0%, 100% {
@@ -174,7 +173,7 @@
                 pointer-events: none;
             }
 
-            .form-control {
+            .form-control, .custom-select {
                 border-radius: 0.5rem;
                 border: 2px solid #e9ecef;
                 height: 3.25rem;
@@ -185,7 +184,7 @@
                 background-color: #f8f9fa;
             }
 
-            .form-control:focus {
+            .form-control:focus, .custom-select:focus {
                 border-color: var(--primary-color);
                 box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
                 background-color: #ffffff;
@@ -193,6 +192,19 @@
 
             .form-control::placeholder {
                 color: #adb5bd;
+            }
+
+            .custom-select {
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+                background-repeat: no-repeat;
+                background-position: right 1rem center;
+                background-size: 16px 12px;
+            }
+
+            .custom-select:focus {
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%230d6efd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
             }
 
             .input-group-append {
@@ -403,6 +415,23 @@
                     <!-- Formulario -->
                     <form action="${pageContext.request.contextPath}/LoginServlet" method="POST" id="loginForm">
 
+                        <!-- Selector de Rol -->
+                        <div class="form-group">
+                            <label for="rol" class="form-label">
+                                <i class="fas fa-user-tag"></i>
+                                Tipo de Usuario
+                            </label>
+                            <div class="input-group">
+                                <i class="fas fa-users input-icon"></i>
+                                <select class="custom-select" id="rol" name="rol" required>
+                                    <option value="" selected disabled>Selecciona tu rol</option>
+                                    <option value="1">Administrador</option>
+                                    <option value="2">Personal Médico</option>
+                                    <option value="3">Personal No Médico</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <!-- Email -->
                         <div class="form-group">
                             <label for="email" class="form-label">
@@ -418,7 +447,6 @@
                                     name="email" 
                                     placeholder="usuario@ejemplo.com"
                                     required 
-                                    autofocus
                                     autocomplete="email">
                             </div>
                         </div>
@@ -515,8 +543,23 @@
 
                 // Validación del formulario
                 $('#loginForm').on('submit', function (e) {
+                    const rol = $('#rol').val();
                     const email = $('#email').val().trim();
                     const password = $('#password').val().trim();
+
+                    // Validar que se haya seleccionado un rol
+                    if (!rol) {
+                        e.preventDefault();
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Rol No Seleccionado',
+                            text: 'Por favor, selecciona tu tipo de usuario',
+                            confirmButtonColor: '#0d6efd',
+                            confirmButtonText: 'Entendido'
+                        });
+                        $('#rol').focus();
+                        return false;
+                    }
 
                     // Validar campos vacíos
                     if (!email || !password) {

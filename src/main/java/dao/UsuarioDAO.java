@@ -9,15 +9,15 @@ import util.GeneradorCodigos;
 
 public class UsuarioDAO {
 
-    public Usuario autenticar(String email, String password) {
-        String sql = "SELECT * FROM Usuarios WHERE email = ? AND password = ? AND activo = TRUE";
-
-        try (Connection conn = ConexionDB.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+    public Usuario autenticar(String email, String password, int idRol) {
+        String sql = "SELECT * FROM Usuarios WHERE email = ? AND password = ? AND id_rol = ? AND activo = TRUE";
+        
+        try (Connection conn = ConexionDB.getConnection(); 
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, email);
             stmt.setString(2, password);
+            stmt.setInt(3, idRol);
             ResultSet rs = stmt.executeQuery();
-
             if (rs.next()) {
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
@@ -27,11 +27,11 @@ public class UsuarioDAO {
                 usuario.setIdRol(rs.getInt("id_rol"));
                 usuario.setFechaRegistro(rs.getString("fecha_registro"));
                 usuario.setActivo(rs.getBoolean("activo"));
-
+                
                 // Agregar foto de perfil si existe
                 String fotoPerfil = rs.getString("foto_perfil");
                 usuario.setFotoPerfil(fotoPerfil);
-
+                
                 return usuario;
             }
         } catch (SQLException e) {
